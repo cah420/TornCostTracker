@@ -1,5 +1,6 @@
 Torn Cost Tracker
-Version 0.6.0-alpha1
+
+The current application version is defined in [`version.json`](version.json).
 
 Thank you for helping test!
 
