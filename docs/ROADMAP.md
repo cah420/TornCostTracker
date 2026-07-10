@@ -1,13 +1,15 @@
 # Roadmap
 
-## v0.3.x
-- Component library
-- Sidebar animation
-- Developer panel
-- Theme manager
+## Completed foundations
+- Modular application shell, router, API queue, and local storage.
+- Item inventory cache and reusable DataGrid.
+- OwnedItem collection and importer architecture for inventory data.
 
-## v0.4.x
-- Torn API integration
-- Item cache
-- Inventory
-- API validation
+## Next: additional item locations
+- Bazaar importer and location merge support.
+- Display Case importer and location merge support.
+- Item Market importer and location merge support.
+
+## Future
+- Cost-basis processing from Torn logs.
+- Purchase history and reporting views.

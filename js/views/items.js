@@ -24,7 +24,7 @@ export default{
   const grid = new DataGrid({
    columns: [
     {label:"Item",key:"name",type:"text"},
-    {label:"Qty",key:"quantity",type:"number",defaultSort:true},
+    {label:"Qty",key:"totalQuantity",type:"number",defaultSort:true},
     {label:"Category",key:"category",type:"text"},
    ],
    storageKey: "tct.grid.items.sort",

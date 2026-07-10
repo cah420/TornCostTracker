@@ -7,3 +7,8 @@ Item Store added.
 ## Sprint 1 - DataGrid Core
 - Replaced the Items table helper with a reusable DataGrid component.
 - Added descending-first sorting, persisted sort preferences, loading and empty states, numeric alignment, and optional row callbacks.
+
+## Sprint 2 - Data Model Consolidation
+- Added the canonical OwnedItem model with location and source metadata.
+- Added InventoryImporter to normalize Torn inventory responses before they reach ItemStore.
+- Migrated ItemStore to merge OwnedItem records rather than retain raw inventory rows.
