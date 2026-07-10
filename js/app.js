@@ -1,6 +1,7 @@
 import { Router } from "./router.js";
 import { Events } from "./events.js";
 import { StatusBar } from "./components/status-bar.js";
+import { PlayerStore } from "./stores/player.js";
 
 import Dashboard from "./views/dashboard.js";
 import Items from "./views/items.js";
@@ -30,6 +31,11 @@ async function applyVersion(){
 
 new StatusBar(document.getElementById("status"));
 void applyVersion();
+void PlayerStore.refreshIfConfigured()
+  .then((player)=>{
+    if (player) Events.emit("connectionChanged", { player });
+  })
+  .catch((error)=>console.warn("Unable to refresh cached player profile:", error));
 
 document.querySelectorAll(".nav-button").forEach((btn) => {
   btn.addEventListener("click", () => Router.navigate(btn.dataset.page));

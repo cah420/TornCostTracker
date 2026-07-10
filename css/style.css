@@ -242,6 +242,68 @@ main {
   color: var(--text);
 }
 
+.tct-status-bar__profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.tct-status-bar__avatar {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.tct-status-bar__player-details {
+  display: grid;
+  gap: 2px;
+}
+
+.tct-status-bar__player-details span {
+  color: var(--text-muted);
+}
+
+.api-key-help {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.api-key-generator,
+.api-key-save {
+  display: inline-block;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  color: white;
+  font: inherit;
+  text-decoration: none;
+  background: var(--primary);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.api-key-generator:hover,
+.api-key-save:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.api-key-save:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.settings-message {
+  min-height: 1.5em;
+  margin-top: 8px;
+  color: var(--text-muted);
+}
+
+.settings-message--success { color: var(--success); }
+.settings-message--error { color: var(--danger); }
+
 .status-dot {
   width: 10px;
 
