@@ -60,6 +60,6 @@ export const InventoryImporter = {
       }
     }
 
-    return importedItems;
+    return { items: importedItems, status: { state: "complete", label: "Complete", detail: null } };
   },
 };

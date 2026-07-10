@@ -4,6 +4,7 @@ import { ItemSyncService } from "../services/item-sync-service.js";
 import { Events } from "../events.js";
 import { ItemDetails } from "../components/ItemDetails/item-details.js";
 import { SyncStatusPanel } from "../components/sync-status-panel.js";
+import { createItemImage } from "../components/item-image.js";
 
 const LOCATION_LABELS = {
  inventory: "Inventory",
@@ -17,6 +18,15 @@ function locationText(item){
   .filter(([, location])=>location.quantity>0)
   .map(([key])=>LOCATION_LABELS[key] ?? key)
   .join(", ");
+}
+
+function itemCell(name, item){
+ const content = document.createElement("div");
+ content.className = "tct-item-cell";
+ const label = document.createElement("span");
+ label.textContent = name;
+ content.append(createItemImage(item, { className: "tct-item-image--grid" }), label);
+ return content;
 }
 
 let itemDetailsComponent = null;
@@ -45,7 +55,7 @@ export default{
   itemDetailsComponent = new ItemDetails();
   const grid = new DataGrid({
    columns: [
-    {label:"Item",key:"name",type:"text"},
+    {label:"Item",key:"name",type:"text",renderCell:itemCell},
     {label:"Qty",key:"totalQuantity",type:"number",defaultSort:true},
     {label:"Location",key:"location",type:"text",value:locationText},
     {label:"Category",key:"category",type:"text"},

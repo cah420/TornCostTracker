@@ -21,3 +21,7 @@ Item Store added.
 ## Sprint 4 - Item Details & Application Status
 - Added reusable ItemDetails, StatusBar, and synchronization status components.
 - Added DataGrid item selection, synchronization status events, and refresh summaries.
+
+## Sprint 5 - Item Market & Display Case Integration
+- Added DisplayCaseImporter and ItemMarketImporter as OwnedItem location sources.
+- Extended ItemSyncService to synchronize all four owned-item locations and preserve cached data on source errors.

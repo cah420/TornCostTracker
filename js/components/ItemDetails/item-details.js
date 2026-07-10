@@ -2,6 +2,7 @@
  * Displays one selected OwnedItem. The tab list is intentionally extensible.
  */
 import { Events } from "../../events.js";
+import { createItemImage } from "../item-image.js";
 
 const LOCATION_LABELS = {
   inventory: "Inventory",
@@ -81,7 +82,10 @@ export class ItemDetails {
     }
 
     const title = document.createElement("h3");
-    title.textContent = this.item.name;
+    title.className = "tct-item-details__title";
+    const name = document.createElement("span");
+    name.textContent = this.item.name;
+    title.append(createItemImage(this.item, { size: "large", className: "tct-item-image--detail" }), name);
     const details = document.createElement("dl");
     const rows = [
       ["Category", this.item.category || "Unknown"],

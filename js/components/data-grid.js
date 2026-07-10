@@ -205,8 +205,17 @@ export class DataGrid {
       this.columns.forEach((column) => {
         const cell = document.createElement("td");
         const value = this.valueFor(data, column);
-        const displayValue = column.format ? column.format(value, data) : value;
-        cell.textContent = displayValue ?? "";
+        if (column.renderCell) {
+          const content = column.renderCell(value, data);
+          if (content instanceof Node) {
+            cell.appendChild(content);
+          } else {
+            cell.textContent = content ?? "";
+          }
+        } else {
+          const displayValue = column.format ? column.format(value, data) : value;
+          cell.textContent = displayValue ?? "";
+        }
         if (column.type === "number") cell.classList.add("tct-data-grid__number");
         row.appendChild(cell);
       });

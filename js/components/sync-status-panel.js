@@ -15,7 +15,7 @@ export class SyncStatusPanel {
     this.getState = getState;
     this.onRefresh = onRefresh;
     this.refreshing = false;
-    this.collapsed = { status: false, summary: false, statistics: false };
+    this.collapsed = false;
     this.element = document.createElement("section");
     this.element.className = "tct-sync-status";
     this.onChange = ()=>this.render();
@@ -47,9 +47,10 @@ export class SyncStatusPanel {
       list.appendChild(row);
     });
     this.element.append(
-      this.createSection("status", "Synchronization Status", this.createStatusContent(list)),
-      this.createSection("summary", "Last Synchronization", this.createSummary(summary)),
-      this.createSection("statistics", "Item Statistics", this.createStatistics(statistics)),
+      this.createSection("Synchronization Status", this.createStatusContent(list)),
+      this.createSection("Last Synchronization", this.createSummary(summary)),
+      this.createSection("Item Statistics", this.createStatistics(statistics)),
+      this.createToggle(),
     );
   }
 
@@ -80,27 +81,31 @@ export class SyncStatusPanel {
     }
   }
 
-  createSection(id, title, content){
+  createToggle(){
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "tct-sync-status__toggle";
+    toggle.textContent = String.fromCharCode(this.collapsed ? 0x25B8 : 0x25BE);
+    toggle.title = this.collapsed ? "Expand synchronization panels" : "Collapse synchronization panels";
+    toggle.setAttribute("aria-label", toggle.title);
+    toggle.setAttribute("aria-expanded", String(!this.collapsed));
+    toggle.addEventListener("click", ()=>{
+      this.collapsed = !this.collapsed;
+      this.render();
+    });
+    return toggle;
+  }
+
+  createSection(title, content){
     const section = document.createElement("section");
     section.className = "tct-sync-status__section";
     const header = document.createElement("div");
     header.className = "tct-sync-status__header";
     const heading = document.createElement("h3");
     heading.textContent = title;
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "tct-sync-status__toggle";
-    toggle.textContent = String.fromCharCode(this.collapsed[id] ? 0x25B8 : 0x25BE);
-    toggle.title = this.collapsed[id] ? `Expand ${title}` : `Collapse ${title}`;
-    toggle.setAttribute("aria-label", toggle.title);
-    toggle.setAttribute("aria-expanded", String(!this.collapsed[id]));
-    toggle.addEventListener("click", ()=>{
-      this.collapsed[id] = !this.collapsed[id];
-      this.render();
-    });
-    header.append(heading, toggle);
+    header.appendChild(heading);
     section.appendChild(header);
-    if (!this.collapsed[id]) section.appendChild(content);
+    if (!this.collapsed) section.appendChild(content);
     return section;
   }
 
@@ -114,6 +119,8 @@ export class SyncStatusPanel {
     const values = [
       ["Inventory items", summary.inventoryItemCount],
       ["Bazaar items", summary.bazaarItemCount],
+      ["Display Case items", summary.displayCaseItemCount ?? 0],
+      ["Item Market items", summary.itemMarketItemCount ?? 0],
       ["Merged unique items", summary.totalUniqueOwnedItems],
       ["Total quantities", summary.totalItemQuantity],
       ["Elapsed", `${summary.duration} ms`],

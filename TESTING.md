@@ -27,3 +27,11 @@
 - Refresh items: the application StatusBar and synchronization panel update through each import stage.
 - Sync while Bazaar is closed: the panel explains the limitation and previously cached Bazaar quantities remain intact.
 - Complete a synchronization: the panel displays item counts, merged totals, and elapsed time.
+
+## Sprint 5 - Item Market & Display Case Integration
+
+- Refresh items: Inventory, Bazaar, Display Case, and Item Market each publish progress and a source status.
+- Confirm items in Display Case and Item Market contribute to their location quantities and the total quantity.
+- Confirm the DataGrid Location column and ItemDetails show every populated location.
+- Simulate or encounter a source error: the panel reports Cached and existing quantities remain unchanged.
+- Confirm no Display Case or Item Market response fields are read outside their respective importers.

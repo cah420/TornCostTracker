@@ -30,5 +30,11 @@ export const API={
  },
  async getBazaarPage(offset=0, limit=100){
   return request(`/user/?selections=bazaar&offset=${offset}&limit=${limit}`,BASE_V1);
+ },
+ async getDisplayCase(){
+  return request("/user/?selections=display",BASE_V1);
+ },
+ async getItemMarketPage(offset=0){
+  return request(`/user/itemmarket?offset=${offset}`);
  }
 };
