@@ -17,3 +17,7 @@ Item Store added.
 - Added BazaarImporter and Bazaar location quantities with update timestamps.
 - Added ItemSyncService to coordinate imports, progress reporting, and refresh summaries.
 - Restricted ItemStore to OwnedItem merging, storage, searching, statistics, and persistence.
+
+## Sprint 4 - Item Details & Application Status
+- Added reusable ItemDetails, StatusBar, and synchronization status components.
+- Added DataGrid item selection, synchronization status events, and refresh summaries.

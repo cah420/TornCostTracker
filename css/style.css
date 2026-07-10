@@ -228,6 +228,20 @@ main {
   border-radius: 999px;
 }
 
+.tct-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 14px;
+  max-width: 720px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.tct-status-bar__item:last-child {
+  color: var(--text);
+}
+
 .status-dot {
   width: 10px;
 

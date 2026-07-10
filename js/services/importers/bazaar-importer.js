@@ -29,9 +29,11 @@ export const BazaarImporter = {
   async import(progress){
     const importedItems = [];
     let offset = 0;
+    let isOpen = null;
 
     while(true){
       const response = await API.getBazaarPage(offset, PAGE_SIZE);
+      isOpen = response.bazaar_is_open ?? response.bazaar?.is_open ?? isOpen;
       const bazaar = response.bazaar ?? [];
       const pageItems = Array.isArray(bazaar) ? bazaar : bazaar.items ?? [];
       const timestamp = Date.now();
@@ -43,6 +45,15 @@ export const BazaarImporter = {
       offset += PAGE_SIZE;
     }
 
-    return importedItems;
+    return {
+      items: importedItems,
+      status: isOpen === false
+        ? {
+            state: "unavailable",
+            label: "Closed",
+            detail: "Torn only returns Bazaar contents while your Bazaar is open.",
+          }
+        : { state: "complete", label: "Complete", detail: null },
+    };
   },
 };

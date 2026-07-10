@@ -1,5 +1,6 @@
 import { Router } from "./router.js";
 import { Events } from "./events.js";
+import { StatusBar } from "./components/status-bar.js";
 
 import Dashboard from "./views/dashboard.js";
 import Items from "./views/items.js";
@@ -10,6 +11,8 @@ import Settings from "./views/settings.js";
 [Dashboard, Items, Purchases, Statistics, Settings].forEach((view) =>
   Router.register(view),
 );
+
+new StatusBar(document.getElementById("status"));
 
 document.querySelectorAll(".nav-button").forEach((btn) => {
   btn.addEventListener("click", () => Router.navigate(btn.dataset.page));

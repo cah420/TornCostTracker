@@ -1,6 +1,9 @@
 import { DataGrid } from "../components/data-grid.js";
 import { ItemStore } from "../stores/items.js";
 import { ItemSyncService } from "../services/item-sync-service.js";
+import { Events } from "../events.js";
+import { ItemDetails } from "../components/ItemDetails/item-details.js";
+import { SyncStatusPanel } from "../components/sync-status-panel.js";
 
 const LOCATION_LABELS = {
  inventory: "Inventory",
@@ -16,6 +19,9 @@ function locationText(item){
   .join(", ");
 }
 
+let itemDetailsComponent = null;
+let syncStatusComponent = null;
+
 export default{
  route:"items",
  title:"Items",
@@ -23,19 +29,20 @@ export default{
   const d=document.createElement("div");
   d.className="card";
   d.innerHTML=`<h2>Items</h2>
-  <button id="refresh">Refresh Items</button>
-  <div id="stats"></div>
   <input id="search" placeholder="Search..." style="width:100%;margin:10px 0;">
   <div id="progress"></div>
-  <div id="table"></div>`;
+  <div id="syncStatus"></div>
+  <div class="tct-items-layout">
+   <div id="table"></div>
+   <div id="itemDetails"></div>
+  </div>`;
   return d;
  },
  async mount(){
-  const stats=document.getElementById("stats");
   const table=document.getElementById("table");
   const search=document.getElementById("search");
-  const refreshButton=document.getElementById("refresh");
   const progress=document.getElementById("progress");
+  itemDetailsComponent = new ItemDetails();
   const grid = new DataGrid({
    columns: [
     {label:"Item",key:"name",type:"text"},
@@ -45,33 +52,37 @@ export default{
    ],
    storageKey: "tct.grid.items.sort",
    emptyMessage: "No items found.",
+   onRowClick:(item)=>Events.emit("itemSelected",{item}),
   });
   table.replaceChildren(grid.element);
-
-  const renderStats=()=>{
-   const s=ItemStore.statistics();
-   stats.innerHTML=`Unique Items: ${s.uniqueItems}<br>Total Quantity: ${s.totalQuantity}<br>Last Updated: ${s.lastUpdated?new Date(s.lastUpdated).toLocaleString():"Never"}`;
-  };
+  document.getElementById("itemDetails").replaceChildren(itemDetailsComponent.element);
   const renderRows=()=>grid.setRows(ItemStore.search(search.value));
-
-  renderStats();
-  renderRows();
-  search.oninput=renderRows;
-  refreshButton.onclick=async()=>{
+  const refreshItems=async()=>{
     progress.textContent="Refreshing...";
-    refreshButton.disabled=true;
     grid.setLoading(true, "Synchronizing items...");
     try{
       await ItemSyncService.synchronize((update)=>{progress.textContent=update.message;});
       progress.textContent="Complete";
-      renderStats();
       renderRows();
     }catch(error){
       progress.textContent=`Refresh failed: ${error.message}`;
     }finally{
       grid.setLoading(false);
-      refreshButton.disabled=false;
     }
   };
+  syncStatusComponent = new SyncStatusPanel(
+    ()=>ItemSyncService.state(),
+    { onRefresh: refreshItems },
+  );
+  document.getElementById("syncStatus").replaceChildren(syncStatusComponent.element);
+
+  renderRows();
+  search.oninput=renderRows;
+ },
+ async destroy(){
+  itemDetailsComponent?.destroy();
+  syncStatusComponent?.destroy();
+  itemDetailsComponent=null;
+  syncStatusComponent=null;
  }
 };

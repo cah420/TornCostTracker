@@ -6,6 +6,7 @@
 
 import { Settings } from "../settings.js";
 import { API } from "../api.js";
+import { Events } from "../events.js";
 
 export default {
   route: "settings",
@@ -43,7 +44,7 @@ export default {
 
             </div>
 
-            <div id="status" style="margin-top:20px;">
+            <div id="settingsStatus" style="margin-top:20px;">
 
                 Not Connected
 
@@ -57,7 +58,7 @@ export default {
     const settings = Settings.load();
 
     const apiKeyInput = document.getElementById("apiKey");
-    const status = document.getElementById("status");
+    const status = document.getElementById("settingsStatus");
 
     apiKeyInput.value = settings.apiKey ?? "";
 
@@ -112,11 +113,7 @@ export default {
                     Level ${player.level} ${player.rank}
                 `;
 
-        const headerStatus = document.getElementById("statusText");
-
-        if (headerStatus) {
-          headerStatus.textContent = "Connected";
-        }
+        Events.emit("connectionChanged", { player: result.player });
       } catch (error) {
         status.innerHTML = `
                     <span style="color:#ef4444;">
@@ -128,11 +125,7 @@ export default {
                     ${error.message}
                 `;
 
-        const headerStatus = document.getElementById("statusText");
-
-        if (headerStatus) {
-          headerStatus.textContent = "Disconnected";
-        }
+        Events.emit("connectionChanged", { player: null });
       }
     });
   },

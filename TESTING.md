@@ -20,3 +20,10 @@
 - Refresh with an item in both inventory and Bazaar: its displayed total is the sum of both quantities.
 - Refresh with an item only in Bazaar: it remains in the OwnedItem collection after inventory is replaced.
 - Confirm Torn inventory and Bazaar response fields are read only in their respective importers.
+
+## Sprint 4 - Item Details & Application Status
+
+- Select an Items-grid row: ItemDetails shows the selected item's general information and location quantities.
+- Refresh items: the application StatusBar and synchronization panel update through each import stage.
+- Sync while Bazaar is closed: the panel explains the limitation and previously cached Bazaar quantities remain intact.
+- Complete a synchronization: the panel displays item counts, merged totals, and elapsed time.

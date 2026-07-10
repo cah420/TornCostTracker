@@ -15,3 +15,7 @@ Synchronization is now coordinated by `ItemSyncService`:
 `Torn API -> Importers -> ItemSyncService -> ItemStore.merge() -> OwnedItem collection`
 
 The service runs Inventory and Bazaar imports in sequence, exposes progress updates, and returns a summary. `ItemStore` no longer initiates imports; it only stores and merges normalized items. Locations now retain both a quantity and an update timestamp, allowing Bazaar inventory to contribute automatically to `totalQuantity`.
+
+## Sprint 4 - Item Details & Application Status
+
+The desktop layer now uses the existing event bus for `itemSelected`, `statusChanged`, `itemsSynced`, and `connectionChanged` events. DataGrid emits selection events without knowing about stores; ItemDetails renders the selected OwnedItem. StatusBar and SyncStatusPanel consume synchronization events from ItemSyncService, keeping progress and summaries outside importer and store responsibilities.
