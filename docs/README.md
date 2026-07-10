@@ -1,0 +1,1 @@
+Replace js/api.js and js/models.js. Adds queued inventory downloader.
