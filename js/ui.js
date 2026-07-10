@@ -1,17 +1,10 @@
-export function loadPage(html) {
-  document.getElementById("content").innerHTML = html;
-}
-
-export function toast(message) {
-  const div = document.createElement("div");
-
-  div.className = "toast";
-
-  div.textContent = message;
-
-  document.getElementById("toastContainer").appendChild(div);
-
-  setTimeout(() => {
-    div.remove();
-  }, 3000);
-}
+window.TCT.ui = {
+  toast(msg){
+    const c=document.getElementById('toastContainer');
+    const t=document.createElement('div');
+    t.className='toast';
+    t.textContent=msg;
+    c.appendChild(t);
+    setTimeout(()=>t.remove(),3000);
+  }
+};

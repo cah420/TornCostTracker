@@ -1,16 +1,12 @@
-# Torn Cost Tracker v0.2.0 Part 2
+# Torn Cost Tracker v0.3.0 - UI Framework
 
-This package is the first architectural refactor.
+This release introduces the foundation of the reusable UI framework.
 
-Included:
-- core.js (global application object)
-- router.js (HTML partial loader)
-- app.js (new bootstrap)
-- pages/*.html (HTML partials)
+New:
+- Event bus
+- UI manager
+- Theme manager
+- Developer panel placeholder
+- Component folders
 
-NOTE:
-The next package will add:
-- page-specific JS loading
-- sidebar collapse
-- UI component library
-- notifications
+Next release will wire these into the application shell.
