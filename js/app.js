@@ -1,5 +1,8 @@
-loadPage(pages[page].render());
+import "./core.js";
+import "./router.js";
 
-document.getElementById("sidebarToggle").onclick = () => {
-  document.getElementById("app").classList.toggle("collapsed");
-};
+document.querySelectorAll(".nav-button").forEach(btn=>{
+  btn.addEventListener("click", ()=>TCT.router.load(btn.dataset.page));
+});
+
+window.addEventListener("DOMContentLoaded", ()=>TCT.init());

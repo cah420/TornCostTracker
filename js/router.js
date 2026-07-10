@@ -1,13 +1,21 @@
-import * as Dashboard from "./pages/dashboard.js";
-import * as Inventory from "./pages/inventory.js";
-import * as Purchases from "./pages/purchases.js";
-import * as Statistics from "./pages/statistics.js";
-import * as Settings from "./pages/settings.js";
+window.TCT.router = {
+  async load(page){
+    const response = await fetch(`pages/${page}.html`);
+    if(!response.ok){
+      document.getElementById("content").innerHTML =
+        `<div class="card"><h2>Error</h2><p>Unable to load ${page}.</p></div>`;
+      return;
+    }
 
-export const pages = {
-  dashboard: Dashboard,
-  inventory: Inventory,
-  purchases: Purchases,
-  statistics: Statistics,
-  settings: Settings,
+    document.getElementById("content").innerHTML = await response.text();
+
+    document.getElementById("pageTitle").textContent =
+      page.charAt(0).toUpperCase()+page.slice(1);
+
+    document.querySelectorAll(".nav-button").forEach(btn=>{
+      btn.classList.toggle("active", btn.dataset.page===page);
+    });
+
+    TCT.currentPage = page;
+  }
 };
