@@ -12,3 +12,8 @@ Item Store added.
 - Added the canonical OwnedItem model with location and source metadata.
 - Added InventoryImporter to normalize Torn inventory responses before they reach ItemStore.
 - Migrated ItemStore to merge OwnedItem records rather than retain raw inventory rows.
+
+## Sprint 3 - Bazaar Integration & Synchronization
+- Added BazaarImporter and Bazaar location quantities with update timestamps.
+- Added ItemSyncService to coordinate imports, progress reporting, and refresh summaries.
+- Restricted ItemStore to OwnedItem merging, storage, searching, statistics, and persistence.

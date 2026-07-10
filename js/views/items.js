@@ -1,5 +1,20 @@
 import { DataGrid } from "../components/data-grid.js";
 import { ItemStore } from "../stores/items.js";
+import { ItemSyncService } from "../services/item-sync-service.js";
+
+const LOCATION_LABELS = {
+ inventory: "Inventory",
+ bazaar: "Bazaar",
+ itemMarket: "Item Market",
+ displayCase: "Display Case",
+};
+
+function locationText(item){
+ return Object.entries(item.locations)
+  .filter(([, location])=>location.quantity>0)
+  .map(([key])=>LOCATION_LABELS[key] ?? key)
+  .join(", ");
+}
 
 export default{
  route:"items",
@@ -25,6 +40,7 @@ export default{
    columns: [
     {label:"Item",key:"name",type:"text"},
     {label:"Qty",key:"totalQuantity",type:"number",defaultSort:true},
+    {label:"Location",key:"location",type:"text",value:locationText},
     {label:"Category",key:"category",type:"text"},
    ],
    storageKey: "tct.grid.items.sort",
@@ -44,9 +60,9 @@ export default{
   refreshButton.onclick=async()=>{
     progress.textContent="Refreshing...";
     refreshButton.disabled=true;
-    grid.setLoading(true, "Refreshing inventory...");
+    grid.setLoading(true, "Synchronizing items...");
     try{
-      await ItemStore.refresh(x=>{progress.textContent=`${x.category??""} ${x.current??""}/${x.total??""}`});
+      await ItemSyncService.synchronize((update)=>{progress.textContent=update.message;});
       progress.textContent="Complete";
       renderStats();
       renderRows();

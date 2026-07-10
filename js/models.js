@@ -12,9 +12,21 @@ function quantity(value){
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
-function locationsFor(locations = {}){
+function locationFor(value, timestamp){
+  if (value && typeof value === "object") {
+    return {
+      quantity: quantity(value.quantity),
+      updated: value.updated ?? timestamp,
+    };
+  }
+
+  // Sprint 2 stored locations as quantities; preserve those cached records.
+  return { quantity: quantity(value), updated: timestamp };
+}
+
+function locationsFor(locations = {}, timestamp = Date.now()){
   return Object.fromEntries(
-    OWNED_ITEM_LOCATIONS.map((location) => [location, quantity(locations[location])]),
+    OWNED_ITEM_LOCATIONS.map((location) => [location, locationFor(locations[location], timestamp)]),
   );
 }
 
@@ -38,21 +50,21 @@ export class OwnedItem {
     this.id = id;
     this.name = name;
     this.category = category;
-    this.locations = locationsFor(locations);
     this.metadata = metadataFor(metadata);
+    this.locations = locationsFor(locations, this.metadata.lastUpdated);
     this.totalQuantity = this.calculateTotalQuantity();
   }
 
   calculateTotalQuantity(){
-    return Object.values(this.locations).reduce((total, value) => total + value, 0);
+    return Object.values(this.locations).reduce((total, location) => total + location.quantity, 0);
   }
 
-  setLocation(location, value){
+  setLocation(location, value, updated = Date.now()){
     if (!OWNED_ITEM_LOCATIONS.includes(location)) {
       throw new Error(`Unknown item location: ${location}`);
     }
 
-    this.locations[location] = quantity(value);
+    this.locations[location] = { quantity: quantity(value), updated };
     this.totalQuantity = this.calculateTotalQuantity();
   }
 
@@ -65,6 +77,10 @@ export class OwnedItem {
 
   removeSource(source){
     this.metadata.sources = this.metadata.sources.filter((itemSource) => itemSource !== source);
+  }
+
+  locationQuantity(location){
+    return this.locations[location]?.quantity ?? 0;
   }
 
   static from(item, fallbackTimestamp = Date.now()){
