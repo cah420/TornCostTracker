@@ -1,0 +1,3 @@
+.tct-table{width:100%;border-collapse:collapse}
+.tct-table th,.tct-table td{border:1px solid #555;padding:6px;text-align:left}
+.tct-table th{user-select:none}

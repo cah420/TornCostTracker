@@ -1,7 +1,2 @@
-# v0.4.2 Core Cleanup
-
-- Added default settings
-- Improved Storage API
-- Timestamped Logger
-- Expanded models
-- Refactored API helper
+# v0.5.2
+Item Store added.
