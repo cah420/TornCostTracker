@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Torn Cost Tracker</title>
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <div class="logo">
+          <h2>TCT</h2>
+          <span>v0.1.0</span>
+        </div>
+
+        <nav>
+          <button class="nav-button active" data-page="dashboard">
+            Dashboard
+          </button>
+
+          <button class="nav-button" data-page="inventory">Inventory</button>
+
+          <button class="nav-button" data-page="purchases">Purchases</button>
+
+          <button class="nav-button" data-page="statistics">Statistics</button>
+
+          <button class="nav-button" data-page="settings">Settings</button>
+        </nav>
+      </aside>
+
+      <main>
+        <header>
+          <h1>Torn Cost Tracker</h1>
+
+          <div id="status">
+            <span id="statusText"> Ready </span>
+          </div>
+        </header>
+
+        <section id="content"></section>
+      </main>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
