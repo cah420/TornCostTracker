@@ -1,17 +1,31 @@
-import { toast } from "./ui.js";
+/**
+ * settings.js
+ */
+import {Storage} from "./storage.js";
 
-export function initializeSettings() {
-  const button = document.getElementById("saveSettings");
+const DEFAULT_SETTINGS={
+ apiKey:"",
+ debug:false,
+ theme:"dark",
+ autoSync:false
+};
 
-  if (!button) return;
+export const Settings={
+ KEY:"tct.settings",
 
-  const input = document.getElementById("apiKey");
+ load(){
+  return {...DEFAULT_SETTINGS,...Storage.load(this.KEY,{})};
+ },
 
-  input.value = localStorage.getItem("apiKey") ?? "";
+ save(settings){
+  Storage.save(this.KEY,{...DEFAULT_SETTINGS,...settings});
+ },
 
-  button.onclick = () => {
-    localStorage.setItem("apiKey", input.value.trim());
+ defaults(){
+  return {...DEFAULT_SETTINGS};
+ },
 
-    toast("Settings saved.");
-  };
-}
+ reset(){
+  this.save(DEFAULT_SETTINGS);
+ }
+};

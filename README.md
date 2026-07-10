@@ -1,17 +1,21 @@
-# Torn Cost Tracker
+Release v0.4.1
 
-A local web application for Torn that tracks inventory cost basis using the Torn API.
+1. Copy js/models.js into your project.
+2. Replace js/api.js.
+3. Update your Settings view.
 
-Current Version:
+Replace:
 
-v0.1.0-a
+const data = await API.testConnection();
+const name = data.name;
 
-## Planned Features
+With:
 
-- Inventory Cost Basis
-- Purchase History
-- Log Sync Engine
-- IndexedDB Storage
-- Portfolio Tracking
-- Profit Calculator
-- Market Comparison
+const result = await API.testConnection();
+const { player } = result;
+
+status.textContent =
+`Connected as ${player.name} [${player.id}]`;
+
+Optional:
+Display player.avatar, player.level and player.rank.
