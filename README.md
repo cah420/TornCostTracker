@@ -1,31 +1,71 @@
-Torn Cost Tracker
+# Torn Cost Tracker
 
-The current application version is defined in [`version.json`](version.json).
+Torn Cost Tracker is an early desktop-style web application for tracking your currently owned Torn items and estimating the purchase cost of the units you still hold.
 
-Thank you for helping test!
+**Current version:** 0.7.0-alpha1 (the application reads its version from [version.json](version.json)).
 
-Things I'd like feedback on:
+This alpha is intended for player testing. Data is stored locally in your browser on the device where you run the application.
 
-✓ Connecting your API key
-✓ Refreshing items
-✓ Inventory quantities
-✓ Bazaar quantities (if your bazaar is open)
-✓ Display Case quantities
-✓ Searching
-✓ Sorting
-✓ Item Details
-✓ UI layout
+## What it currently does
 
-Known limitations:
+- Connects to Torn using a limited-access API key.
+- Downloads and combines owned items from Inventory, Bazaar, Display Case, and Item Market.
+- Shows each item's total quantity and populated locations.
+- Caches owned items, the Torn item catalog, player profile, synchronization status, and snapshots locally.
+- Imports purchase-related log history for a chosen 1-180 day period, then supports incremental purchase syncs.
+- Recognizes Bazaar, Item Market, City Shop, Abroad Shop, and trade acquisitions where Torn log data permits.
+- Provides sortable, searchable Items and Purchases tables.
+- Estimates current-holdings cost basis using newest known purchases first, including partial lots.
+- Separately reports quantity coverage and reliably priced coverage so unknown costs are not presented as zero.
 
-- Item Market integration is still in progress.
-- Purchase Cost Engine has not yet been implemented.
-- Bazaar data can only be retrieved while your Bazaar is open (Torn API limitation).
+## Getting started
 
-Please report:
+1. Open **Settings**.
+2. Select **Generate API Key** to create a limited-access Torn key with the permissions the app needs.
+3. Paste the key and select **Save**. Your player profile should appear in the top-right status area.
+4. Open **Items** and select **Refresh** to synchronize your owned items.
+5. Open **Purchases** and choose the number of days of purchase history to import for the initial sync.
+6. Select an item on the Items page, then open **Purchases** in Item Details to view its estimated cost basis.
 
-- Bugs
-- Missing items
-- Incorrect quantities
-- UI issues
-- Suggestions
+Your API key is saved only in local browser storage on your device. Do not share it, screenshots containing it, or browser-storage exports with anyone.
+
+## Helpful things to test
+
+- Item quantities in every location, especially items held in more than one place.
+- Items that exist only in Bazaar, Display Case, or Item Market.
+- Items-grid sorting, searching, row selection, and selected-row highlighting.
+- Purchase imports for Bazaar, Item Market, City Shop, Abroad, and trades.
+- Purchases search by item name, source, seller/counterparty, trade ID, acquisition ID, or date.
+- Cost-basis results for items with known recent purchases, partial lots, and trades.
+- Reloading the app to confirm cached player, item, and purchase information behaves as expected.
+- The confirmation safeguards for clearing the item or purchase cache in Settings.
+
+## Known limitations
+
+- **Bazaar availability:** Torn returns Bazaar contents only while your Bazaar is open. When it is closed or unavailable, the app retains the last cached Bazaar quantity rather than treating it as zero.
+- **Cost basis is an estimate:** it matches current holdings against the newest imported acquisitions first. It cannot fully account for gifts, crimes, rewards, sales, item use, transfers, or purchases before the chosen import window.
+- **Unresolved trades:** multi-item trades with a combined cash amount are counted as acquired quantity, but their cost is intentionally shown as unknown unless Torn's log data supports a safe prior allocation.
+- **Purchase history range:** the initial import is limited to 1-180 days. Older purchase history is not yet imported automatically.
+- **Travel locations:** Abroad purchases use Torn’s logged area mapping. The currently confirmed country mappings cover Mexico, Hawaii, China, Switzerland, Canada, United Kingdom, and Cayman Islands; unconfirmed areas may show simply as `Abroad`.
+- **Local-only storage:** clearing browser/site data, using a different browser/profile, or selecting either clear-cache action removes the corresponding local data. This alpha has no account or cloud backup.
+- **Historical features:** snapshots are saved locally as a foundation for future reporting; portfolio charts, profit/loss, sale ingestion, and exact inventory accounting are not implemented yet.
+
+## Please report
+
+Feedback is most useful when it includes the expected result, actual result, and the steps that led to it. In particular, please report:
+
+- Missing items, incorrect names, locations, or quantities.
+- Bazaar behavior when open versus closed.
+- Purchases that are missing, duplicated, mislabelled, or assigned the wrong item/quantity/cost.
+- Incorrect Abroad country labels; include the Torn log's `area` value and the correct country if you can.
+- Cost-basis results that look incorrect. Include the item, current quantity, relevant purchase dates/amounts, and whether any units came from non-purchase sources.
+- Search, sort, selection, layout, mobile/desktop display, or accessibility issues.
+- API-key validation, synchronization, or cache-clear errors.
+
+Please do **not** include your API key in a report. If a Torn log is helpful, remove player-identifying information unless it is necessary to diagnose the issue.
+
+## Project direction
+
+The current architecture keeps Torn response parsing in importers, stores canonical owned items and acquisitions locally, and calculates derived cost basis separately. Planned work includes better synchronization resilience, unresolved-trade allocation, fuller historical reporting, portfolio growth, and market analysis.
+
+For technical architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For the detailed manual test checklist, see [TESTING.md](TESTING.md).
