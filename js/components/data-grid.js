@@ -17,6 +17,9 @@ export class DataGrid {
     loadingMessage = "Loading...",
     emptyMessage = "No data available.",
     onRowClick = null,
+    rowKey = null,
+    getRowKey = null,
+    selectedRowKey = null,
   } = {}) {
     this.columns = [...columns];
     this.rows = [...rows];
@@ -25,6 +28,12 @@ export class DataGrid {
     this.loadingMessage = loadingMessage;
     this.emptyMessage = emptyMessage;
     this.onRowClick = onRowClick;
+    this.getRowKey = typeof getRowKey === "function"
+      ? getRowKey
+      : typeof rowKey === "string" ? (row) => row?.[rowKey] : null;
+    this.selectedRowKey = selectedRowKey === null || selectedRowKey === undefined
+      ? null
+      : String(selectedRowKey);
     this.sort = this.loadSort();
 
     this.element = document.createElement("table");
@@ -41,6 +50,17 @@ export class DataGrid {
     this.loading = loading;
     this.loadingMessage = message;
     this.render();
+  }
+
+  setSelectedRowKey(key) {
+    this.selectedRowKey = key === null || key === undefined ? null : String(key);
+    this.render();
+  }
+
+  rowKeyFor(row) {
+    if (!this.getRowKey) return null;
+    const key = this.getRowKey(row);
+    return key === null || key === undefined ? null : String(key);
   }
 
   loadSort() {
@@ -189,15 +209,24 @@ export class DataGrid {
 
     this.sortedRows().forEach((data, index) => {
       const row = document.createElement("tr");
+      const rowKey = this.rowKeyFor(data);
+      const selected = rowKey !== null && rowKey === this.selectedRowKey;
+      row.classList.toggle("tct-data-grid__row--selected", selected);
+      if (rowKey !== null) row.setAttribute("aria-selected", String(selected));
 
       if (this.onRowClick) {
         row.classList.add("tct-data-grid__row--clickable");
         row.tabIndex = 0;
-        row.addEventListener("click", () => this.onRowClick(data, index));
+        const select = () => {
+          if (rowKey !== null) this.selectedRowKey = rowKey;
+          this.onRowClick(data, index);
+          if (rowKey !== null) this.render();
+        };
+        row.addEventListener("click", select);
         row.addEventListener("keydown", (event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            this.onRowClick(data, index);
+            select();
           }
         });
       }

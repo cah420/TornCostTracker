@@ -65,3 +65,21 @@
 - Confirm an `Item abroad buy` log with `area: 12` displays as `Abroad - Cayman Islands`.
 - Confirm the known travel-log area mappings display the correct country: Mexico (2), Hawaii (3), China (6), Switzerland (8), Canada (9), United Kingdom (10), and Cayman Islands (12).
 - Confirm Purchases displays separate Cost Each and Total Cost columns; unresolved multi-item trade lines retain Unknown costs.
+
+## Sprint 8 - Current Holdings Cost Basis
+
+- Select an owned item and open Item Details > Purchases: current quantity equals the sum of all four owned-item locations, not a location-specific amount.
+- Verify matched lots are consumed newest first. With 10 units at $100 followed by an older 20 at $80 and 15 currently owned, verify 10 and 5 units are used and total known cost is $1,400.
+- Verify an unresolved multi-item trade can raise Matched Quantity but never Priced Quantity or Total Known Cost; unresolved costs display as Unknown.
+- Verify Quantity Coverage and Priced Coverage are shown separately when history is incomplete or unresolved.
+- Verify items with no matching acquisitions show the transparent history/non-purchase movement warning rather than a $0 cost basis.
+- Trigger item synchronization, purchase synchronization, purchase-cache clearing, and item-cache clearing: the selected Item Details calculation refreshes or clears accordingly.
+- Run `node --experimental-default-type=module js/services/analysis/cost-basis-service.test.mjs` to validate exact lots, weighted averages, partial lots, history shortfalls, unresolved trades, duplicate IDs, grouped acquisitions, City/Abroad sources, stable timestamp ties, and zero holdings.
+
+## Sprint 8.1 - Purchases UX Cleanup & DataGrid Selection
+
+- Open Item Details > Purchases: confirm the tab shows cost-basis summary values, matched dates, explanatory text, and warnings, but no matched-lots DataGrid.
+- On Purchases, search by item name, source, counterparty, trade/acquisition ID, and displayed date text. Confirm whitespace and case do not affect results, clearing restores all rows, and no API call occurs.
+- Sort Purchases, filter it, and clear the filter: confirm the same sort column and direction remain active.
+- Select an Items row: it receives the selected highlight and `aria-selected="true"`. Select another row, sort, filter the first row out and back in, then refresh item rows: selection remains associated with the same item ID when visible.
+- Run `node --experimental-default-type=module js/components/data-grid-selection.test.mjs` to validate stable-key selection and local purchase-search matching.

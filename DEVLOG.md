@@ -41,3 +41,15 @@ City Shop and Abroad Shop purchases are normalized as separate acquisition sourc
 Acquisitions can now retain a neutral source-location label for Abroad purchases. The Purchases DataGrid presents one row per item line so Quantity and Item Name can be sorted independently without inventing an allocation for unresolved multi-item trades.
 
 The global Item Catalog is independent from ItemStore. ItemCatalogService downloads Torn's item reference data through the shared queue and ItemCatalogStore persists only ID, name, and category. Purchases use this catalog before falling back to currently owned item names, allowing historical purchases to retain readable names after an item is sold or consumed.
+
+## Sprint 8 - Current Holdings Cost Basis
+
+CostBasisService is a pure analysis layer: `OwnedItem + canonical Acquisition records -> cost-basis result`. It uses an explicit reverse-chronological strategy, consuming newest acquisition lots first until the item's total quantity is covered. When timestamps are equal, records sort by descending acquisition ID; this stable tiebreaker is documented and tested.
+
+Unresolved acquisitions, including multi-item trades without a safe prior allocation, contribute to matched quantity but never to known cost, weighted average, or price range. The Item Details Purchases tab calculates directly from ItemStore and PurchaseStore whenever it renders, avoiding stale derived persistence.
+
+## Sprint 8.1 - Purchases UX Cleanup & DataGrid Selection
+
+The Purchases page now keeps one DataGrid for its mounted lifetime. Search filters its flattened display rows locally through `setRows()`, so the grid's persisted sort state is retained while the query changes. Item Details keeps cost-basis results concise and directs users to Purchases for full acquisition history.
+
+DataGrid supports optional `rowKey` or `getRowKey` configuration and keeps selection as a stable key, not an object reference. The Items view opts in with canonical `OwnedItem.id`, allowing its selected-row highlight to survive sorting, filtering, and refreshed item copies.

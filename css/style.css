@@ -406,6 +406,15 @@ main {
   border-radius: 8px;
 }
 
+.tct-purchases__search {
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
 .tct-purchases__button,
 .tct-purchases__reset {
   width: fit-content;

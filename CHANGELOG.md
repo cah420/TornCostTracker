@@ -44,3 +44,13 @@ Item Store added.
 - Added a persistent global Torn Item Catalog for complete purchase item-name resolution.
 - Corrected the confirmed travel-log area mapping for Cayman Islands.
 - Added confirmed Mexico, Hawaii, China, Switzerland, Canada, and United Kingdom travel-log area mappings.
+
+## Sprint 8 - Current Holdings Cost Basis
+- Added CostBasisService for newest-acquisition-first current-holdings estimates with partial-lot matching.
+- Added Item Details Purchases tab with quantity/priced coverage, transparent warnings, and matched-lot provenance.
+- Kept unresolved acquisitions as matched quantities without inventing a cost.
+
+## Sprint 8.1 - Purchases UX Cleanup & DataGrid Selection
+- Simplified Item Details Purchases to cost-basis summary, dates, and warnings.
+- Added local Purchases search without recreating the persistent DataGrid.
+- Added stable-key DataGrid row selection and selected-item highlighting.

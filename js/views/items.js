@@ -61,6 +61,7 @@ export default{
     {label:"Category",key:"category",type:"text"},
    ],
    storageKey: "tct.grid.items.sort",
+   rowKey: "id",
    emptyMessage: "No items found.",
    onRowClick:(item)=>Events.emit("itemSelected",{item}),
   });

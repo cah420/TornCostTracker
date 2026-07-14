@@ -8,6 +8,8 @@ import { ItemCatalogStore } from "../stores/item-catalog.js";
 let subscriptions = [];
 let grid = null;
 let renderState = null;
+let allRows = [];
+let searchQuery = "";
 
 function formatDate(timestamp){
   return timestamp ? new Date(timestamp * 1000).toLocaleString() : "—";
@@ -35,6 +37,7 @@ function gridRows(records, itemNames){
   return records.flatMap((record) => record.itemLines.map((line, lineIndex) => ({
     ...record,
     id: `${record.id}:${lineIndex}`,
+    acquisitionId: record.id,
     source: sourceLabel(record),
     itemName: itemNames.get(line.itemId) ?? `Item #${line.itemId}`,
     quantity: line.quantity,
@@ -45,6 +48,23 @@ function gridRows(records, itemNames){
 
 function itemLineText(record){
   return record.itemLines.map((line) => `${line.quantity} × #${line.itemId}`).join(", ");
+}
+
+export function purchaseSearchMatches(row, query){
+  const normalizedQuery = String(query ?? "").trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+  return [
+    row.itemName,
+    row.source,
+    row.counterpartyId,
+    row.tradeId,
+    row.acquisitionId,
+    formatDate(row.timestamp),
+  ].some((value) => String(value ?? "").toLocaleLowerCase().includes(normalizedQuery));
+}
+
+function filteredRows(){
+  return allRows.filter((row) => purchaseSearchMatches(row, searchQuery));
 }
 
 function addListener(event, callback){
@@ -103,23 +123,26 @@ export default {
       status.textContent = message;
     };
 
-    const buildGrid = (records) => {
+    const updateGrid = (records) => {
       const itemNames = new Map(ItemStore.items().map((item) => [Number(item.id), item.name]));
       ItemCatalogStore.all().forEach((item) => itemNames.set(item.id, item.name));
-      grid = new DataGrid({
-        columns: [
-          { label: "Date", key: "timestamp", type: "number", defaultSort: true, format: formatDate },
-          { label: "Source", key: "source" },
-          { label: "Qty", key: "quantity", type: "number" },
-          { label: "Item Name", key: "itemName" },
-          { label: "Cost Each", key: "unitCost", type: "number", format: formatMoney },
-          { label: "Total Cost", key: "lineCost", type: "number", format: formatMoney },
-          { label: "Allocation", key: "allocationStatus", format: (value) => value === "unresolved" ? "Unresolved" : "Known" },
-        ],
-        rows: gridRows(records, itemNames),
-        storageKey: "tct.grid.purchases.sort",
-        emptyMessage: "No item acquisitions were found in this history range.",
-      });
+      allRows = gridRows(records, itemNames);
+      if (!grid) {
+        grid = new DataGrid({
+          columns: [
+            { label: "Date", key: "timestamp", type: "number", defaultSort: true, format: formatDate },
+            { label: "Source", key: "source" },
+            { label: "Qty", key: "quantity", type: "number" },
+            { label: "Item Name", key: "itemName" },
+            { label: "Cost Each", key: "unitCost", type: "number", format: formatMoney },
+            { label: "Total Cost", key: "lineCost", type: "number", format: formatMoney },
+            { label: "Allocation", key: "allocationStatus", format: (value) => value === "unresolved" ? "Unresolved" : "Known" },
+          ],
+          storageKey: "tct.grid.purchases.sort",
+          emptyMessage: "No item acquisitions were found in this history range.",
+        });
+      }
+      grid.setRows(filteredRows());
       return grid.element;
     };
 
@@ -148,7 +171,7 @@ export default {
         const heading = document.createElement("h3");
         heading.textContent = "Set up purchase history";
         const help = document.createElement("p");
-        help.textContent = "Choose how many recent days to import. This first sync only reads from that boundary forward and can be safely retried if interrupted. Torn requires a Full access key to read logs.";
+        help.textContent = "Choose how many recent days to import. This first sync only reads from that boundary forward and can be safely retried if interrupted. A limited access key with log access is required.";
         const label = document.createElement("label");
         label.htmlFor = "purchaseDays";
         label.textContent = "Days of history (1–180)";
@@ -199,7 +222,19 @@ export default {
         finally { busy = false; refresh(); }
       });
       controls.append(sync);
-      content.append(controls, createSummary(state), buildGrid(state.records));
+      const costBasisNote = document.createElement("p");
+      costBasisNote.className = "tct-purchases__message";
+      costBasisNote.textContent = "Select an item on the Items page and open its Purchases tab to view its estimated current-holdings cost basis.";
+      const search = document.createElement("input");
+      search.type = "search";
+      search.className = "tct-purchases__search";
+      search.placeholder = "Search purchases...";
+      search.value = searchQuery;
+      search.addEventListener("input", () => {
+        searchQuery = search.value.trim();
+        grid?.setRows(filteredRows());
+      });
+      content.append(controls, createSummary(state), costBasisNote, search, updateGrid(state.records));
       if (syncState.lastError) showMessage(syncState.lastError, "error");
       else if (syncState.lastSuccessfulAt) showMessage(`Last synchronized ${new Date(syncState.lastSuccessfulAt).toLocaleString()}.`, "success");
     };
@@ -219,5 +254,7 @@ export default {
     clearListeners();
     grid = null;
     renderState = null;
+    allRows = [];
+    searchQuery = "";
   },
 };

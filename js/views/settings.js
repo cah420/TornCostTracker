@@ -25,7 +25,7 @@ export default {
       </p>
       <a
         class="api-key-generator"
-        href="https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=Torn%20Cost%20Tool%20v060alpha3&user=basic,bazaar,display,profile,inventory,itemmarket,log&market=itemmarket,bazaar&torn=items"
+        href="https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=Torn%20Cost%20Tool&user=basic,bazaar,display,profile,inventory,itemmarket,log&market=itemmarket,bazaar&torn=items"
         target="_blank"
         rel="noopener noreferrer"
       >Generate API Key</a>
