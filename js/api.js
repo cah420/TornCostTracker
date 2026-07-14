@@ -36,5 +36,20 @@ export const API={
  },
  async getItemMarketPage(offset=0){
   return request(`/user/itemmarket?offset=${offset}`);
+ },
+ async getTornItems(){
+  return request("/torn/items");
+ },
+ async getUserLogs({ from = null, to = null, limit = 100, continuation = null } = {}){
+  if (continuation) {
+   const next = new URL(continuation, BASE_V2);
+   next.searchParams.delete("key");
+   const endpoint = `${next.pathname.replace(/^\/v2/, "")}${next.search}`;
+   return request(endpoint);
+  }
+  const parameters = new URLSearchParams({ limit: String(Math.min(Math.max(Number(limit) || 100, 1), 100)) });
+  if (Number.isFinite(Number(from))) parameters.set("from", String(Math.floor(Number(from))));
+  if (Number.isFinite(Number(to))) parameters.set("to", String(Math.floor(Number(to))));
+  return request(`/user/log?${parameters.toString()}`);
  }
 };

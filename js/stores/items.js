@@ -37,6 +37,14 @@ export const ItemStore={
   };
  },
  lastUpdated(){return updated;},
+ clear(){
+  items=[];
+  updated=null;
+  tornTimestamp=null;
+  Storage.remove(KEY);
+  Storage.remove(UPDATED);
+  Storage.remove(TORN_TS);
+ },
  merge(incomingItems,{replaceSources=[]}={}){
   const timestamp=Date.now();
   const collection=new Map(items.map((item)=>[item.id,OwnedItem.from(item, item.metadata.created)]));

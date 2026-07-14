@@ -35,3 +35,33 @@
 - Confirm the DataGrid Location column and ItemDetails show every populated location.
 - Simulate or encounter a source error: the panel reports Cached and existing quantities remain unchanged.
 - Confirm no Display Case or Item Market response fields are read outside their respective importers.
+
+## Sprint 6 - Snapshot Engine
+
+- Complete a synchronization: a new `tct.history.snapshots` entry is saved in local storage.
+- Reload the application: the latest snapshot remains available through HistoryStore.
+- Confirm each snapshot stores only item IDs, totals, locations, and metadata timestamps.
+- Confirm failed synchronizations do not emit a new completion event or create a snapshot.
+
+## Sprint 7 - Purchase Log Ingestion
+
+- Connect an account with a Full Torn API key, open Purchases, and import 1–180 whole days of history.
+- Enter decimal, negative, blank, or out-of-range values: setup remains blocked with a validation message.
+- Interrupt or fail the first import, then retry: the selected lower boundary and existing records remain intact; setup is not marked complete.
+- Complete initial setup, reload, and confirm acquisition rows, summaries, and the player-specific checkpoint persist.
+- Sync again: overlapping timestamp pages do not duplicate acquisitions, including entries sharing a timestamp.
+- Confirm a multi-item cash trade is displayed as Unresolved and no per-line cost is fabricated; a one-item trade may show its derived cost.
+- Change to another connected player: Purchases shows that account's independent initial-setup state. Reset confirms before removing only the current player's records.
+- Confirm no raw Torn log payload or API key is present in local storage or console output.
+- Open Settings > Clear Purchase Cache: confirm the clear control remains disabled until its acknowledgement checkbox is selected; cancel leaves records intact, while confirmation clears every cached account's purchase records and checkpoints.
+- Open Settings > Clear Item Cache: confirm the same acknowledgement flow, then verify the Items grid is empty and its synchronization status resets until the next refresh.
+- Import a range containing Torn `Bazaar buy` and `Item market buy` entries: both source types populate acquisitions using their `items`, `cost_total`, and `cost_each` payload fields.
+- Import a period with more than one page of logs: the oldest acquisition reaches the selected initial-sync boundary rather than stopping after a partial page.
+- If an initial import ends before its boundary, inspect the safe console `pages` trace (record counts, timestamps, and continuation-link state) to identify the endpoint page where Torn stopped returning history.
+- Confirm an initial import continues after a short log page without a continuation link, stopping only when the selected lower timestamp boundary is reached.
+- Import City Shop and Abroad Shop purchase logs: both display as distinct purchase sources and preserve their item lines and known cash costs.
+- Confirm an abroad purchase with a logged country displays as `Abroad - [Country]`; confirm Qty and Item Name are separate sortable DataGrid columns.
+- Open Purchases with an empty `tct.itemCatalog`: the catalog downloads once and historical item IDs refresh to Torn item names; reload to confirm the catalog persists locally.
+- Confirm an `Item abroad buy` log with `area: 12` displays as `Abroad - Cayman Islands`.
+- Confirm the known travel-log area mappings display the correct country: Mexico (2), Hawaii (3), China (6), Switzerland (8), Canada (9), United Kingdom (10), and Cayman Islands (12).
+- Confirm Purchases displays separate Cost Each and Total Cost columns; unresolved multi-item trade lines retain Unknown costs.

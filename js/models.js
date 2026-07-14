@@ -12,6 +12,12 @@ function quantity(value){
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function optionalNumber(value){
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function locationFor(value, timestamp){
   if (value && typeof value === "object") {
     return {
@@ -116,6 +122,78 @@ export class OwnedItem {
       totalQuantity: this.totalQuantity,
       locations: this.locations,
       metadata: this.metadata,
+    };
+  }
+}
+
+export const ACQUISITION_SOURCE_TYPES = Object.freeze([
+  "bazaar",
+  "itemMarket",
+  "cityShop",
+  "abroadShop",
+  "trade",
+  "unknown",
+]);
+
+/**
+ * A Torn-neutral, canonical record of items acquired in one transaction.
+ * Timestamps are Unix seconds because Torn logs use that resolution.
+ */
+export class Acquisition {
+  constructor({
+    id,
+    timestamp,
+    sourceType = "unknown",
+    sourceLocation = null,
+    counterpartyId = null,
+    tradeId = null,
+    totalCashCost = null,
+    itemLines = [],
+    allocationStatus = "resolved",
+  } = {}) {
+    if (id === null || id === undefined || id === "") {
+      throw new Error("Acquisition requires a stable id.");
+    }
+    if (!Number.isFinite(Number(timestamp))) {
+      throw new Error("Acquisition requires a timestamp.");
+    }
+
+    this.id = String(id);
+    this.timestamp = Number(timestamp);
+    this.sourceType = ACQUISITION_SOURCE_TYPES.includes(sourceType) ? sourceType : "unknown";
+    this.sourceLocation = typeof sourceLocation === "string" && sourceLocation.trim() ? sourceLocation.trim() : null;
+    this.counterpartyId = counterpartyId === null || counterpartyId === undefined ? null : Number(counterpartyId);
+    this.tradeId = tradeId === null || tradeId === undefined || tradeId === "" ? null : String(tradeId);
+    this.totalCashCost = optionalNumber(totalCashCost);
+    this.itemLines = itemLines
+      .map((line) => ({
+        itemId: line?.itemId === null || line?.itemId === undefined ? null : Number(line.itemId),
+        quantity: quantity(line?.quantity),
+        knownUnitCost: optionalNumber(line?.knownUnitCost),
+        knownLineTotal: optionalNumber(line?.knownLineTotal),
+      }))
+      .filter((line) => line.itemId !== null && line.quantity > 0);
+    if (!this.itemLines.length) {
+      throw new Error("Acquisition requires at least one item line.");
+    }
+    this.allocationStatus = allocationStatus === "unresolved" ? "unresolved" : "resolved";
+  }
+
+  static from(record){
+    return new Acquisition(record);
+  }
+
+  toJSON(){
+    return {
+      id: this.id,
+      timestamp: this.timestamp,
+      sourceType: this.sourceType,
+      sourceLocation: this.sourceLocation,
+      counterpartyId: this.counterpartyId,
+      tradeId: this.tradeId,
+      totalCashCost: this.totalCashCost,
+      itemLines: this.itemLines,
+      allocationStatus: this.allocationStatus,
     };
   }
 }

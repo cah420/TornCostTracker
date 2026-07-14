@@ -79,6 +79,13 @@ export const ItemSyncService = {
       statistics: ItemStore.statistics(),
     };
   },
+  clearState(){
+    Object.entries(DEFAULT_SOURCE_STATES).forEach(([source, defaults]) => {
+      sourceStates[source] = { ...defaults };
+    });
+    lastSummary = null;
+    persistState();
+  },
   async synchronize(progress){
     const startedAt = Date.now();
 
@@ -105,6 +112,12 @@ export const ItemSyncService = {
       totalUniqueOwnedItems: statistics.uniqueItems,
       totalItemQuantity: statistics.totalQuantity,
       duration: Date.now() - startedAt,
+      successfulSourceCount: [
+        inventoryImport,
+        bazaarImport,
+        displayCaseImport,
+        itemMarketImport,
+      ].filter((result)=>result.status.state === "complete").length,
     };
     lastSummary = summary;
     persistState();

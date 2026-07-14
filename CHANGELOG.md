@@ -25,3 +25,22 @@ Item Store added.
 ## Sprint 5 - Item Market & Display Case Integration
 - Added DisplayCaseImporter and ItemMarketImporter as OwnedItem location sources.
 - Extended ItemSyncService to synchronize all four owned-item locations and preserve cached data on source errors.
+
+## Sprint 6 - Snapshot Engine
+- Added event-driven SnapshotService to capture owned-item history after synchronization.
+- Added HistoryStore with persistent snapshots and configurable retention hooks.
+
+## Sprint 7 - Purchase Log Ingestion
+- Added canonical Acquisition records and account-scoped PurchaseStore persistence.
+- Added PurchaseLogImporter and PurchaseSyncService for initial and incremental Torn log synchronization.
+- Added Purchases setup, progress, reset, summary, and acquisition DataGrid states.
+- Corrected Torn v2 log-title/payload decoding and added a confirmed Settings purchase-cache reset.
+- Added a confirmed Settings item-cache reset and item-name labels in purchase rows when the item is cached.
+- Added Torn's `Bazaar buy` and `Item market buy` log-title variants to purchase ingestion.
+- Switched purchase-log pagination to Torn's continuation links and removed the redundant Purchases reset control.
+- Continued timestamp pagination after Torn's non-terminal short log pages.
+- Added City Shop and Abroad Shop purchase-source recognition.
+- Added country-aware Abroad purchase labels and line-level quantity/item-name columns.
+- Added a persistent global Torn Item Catalog for complete purchase item-name resolution.
+- Corrected the confirmed travel-log area mapping for Cayman Islands.
+- Added confirmed Mexico, Hawaii, China, Switzerland, Canada, and United Kingdom travel-log area mappings.

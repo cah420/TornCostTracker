@@ -2,6 +2,7 @@ import { Router } from "./router.js";
 import { Events } from "./events.js";
 import { StatusBar } from "./components/status-bar.js";
 import { PlayerStore } from "./stores/player.js";
+import { SnapshotService } from "./services/history/snapshot-service.js";
 
 import Dashboard from "./views/dashboard.js";
 import Items from "./views/items.js";
@@ -30,6 +31,7 @@ async function applyVersion(){
 );
 
 new StatusBar(document.getElementById("status"));
+SnapshotService.start();
 void applyVersion();
 void PlayerStore.refreshIfConfigured()
   .then((player)=>{
