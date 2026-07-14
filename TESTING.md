@@ -83,3 +83,12 @@
 - Sort Purchases, filter it, and clear the filter: confirm the same sort column and direction remain active.
 - Select an Items row: it receives the selected highlight and `aria-selected="true"`. Select another row, sort, filter the first row out and back in, then refresh item rows: selection remains associated with the same item ID when visible.
 - Run `node --experimental-default-type=module js/components/data-grid-selection.test.mjs` to validate stable-key selection and local purchase-search matching.
+
+## v0.7.1-alpha1 - In-App README
+
+- Open Readme through VS Code Live Server: confirm it displays the current root README with headings, lists, links, code, and application-themed styling.
+- Temporarily make README fetching fail in browser developer tools: confirm the friendly error and Retry control appear, then restore the request and confirm Retry loads the document.
+- Confirm repository-relative links resolve under the current Live Server/GitHub Pages application path, while external links open with `noopener noreferrer`.
+- Update README.md, redeploy, and reload the browser: confirm the Readme route displays the deployed revision.
+- Navigate away from Readme and back: confirm navigation remains functional and the README is shown again.
+- Run `node --experimental-default-type=module js/services/markdown-renderer.test.mjs` to validate headings, lists, links, fenced code, relative paths, and safe raw-HTML handling.

@@ -23,3 +23,9 @@ Quantity coverage (`matched/current`) and priced coverage (`reliably priced/curr
 ## DataGrid selection
 
 DataGrid remains display-state only. Consumers may configure `rowKey` or `getRowKey` to enable generic stable-key selection; DataGrid then exposes `setSelectedRowKey(key)` and marks visible selected rows with `aria-selected` and a CSS class. Views continue to own row-click behavior and event publication. The Items view uses `OwnedItem.id`, so selection does not rely on transient store object references.
+
+## In-app README
+
+`Readme view -> fetch root README.md -> markdown-renderer -> application content area`
+
+The Readme view fetches the repository's root README at runtime and only caches it for the current browser session. `markdown-renderer` creates DOM nodes directly for headings, paragraphs, lists, links, inline and fenced code, blockquotes, horizontal rules, tables, and images. Raw Markdown HTML is unsupported and rendered as text. Links and images resolve relative to the deployed application directory, allowing the same relative README references to work through Live Server and GitHub Pages. Unsafe URL protocols are rejected; external links receive `target="_blank"` and `rel="noopener noreferrer"`.

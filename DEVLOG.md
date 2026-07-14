@@ -53,3 +53,7 @@ Unresolved acquisitions, including multi-item trades without a safe prior alloca
 The Purchases page now keeps one DataGrid for its mounted lifetime. Search filters its flattened display rows locally through `setRows()`, so the grid's persisted sort state is retained while the query changes. Item Details keeps cost-basis results concise and directs users to Purchases for full acquisition history.
 
 DataGrid supports optional `rowKey` or `getRowKey` configuration and keeps selection as a stable key, not an object reference. The Items view opts in with canonical `OwnedItem.id`, allowing its selected-row highlight to survive sorting, filtering, and refreshed item copies.
+
+## v0.7.1-alpha1 - In-App README
+
+The Readme view fetches the root `README.md` through the normal view lifecycle and renders it with a small internal Markdown-to-DOM renderer. It does not maintain a second README copy. The renderer supports common documentation blocks and inline formatting, resolves repository-relative paths from the deployed application base URL, and treats raw HTML as plain text instead of injecting it. Readme loading requires Live Server or a hosted site; direct `file://` use is not supported because browsers restrict fetches there.

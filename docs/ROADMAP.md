@@ -10,6 +10,7 @@
 - Global Torn item catalog for reference-data lookups across owned and historical items.
 - Current-holdings cost-basis estimates with reverse-chronological lot matching and transparent coverage reporting.
 - Local purchase-history search and stable selected-row behavior in DataGrid.
+- In-app tester documentation sourced from the root README.
 
 ## Synchronization enhancements
 - Retry policies, scheduling, and persisted refresh summaries in ItemSyncService.

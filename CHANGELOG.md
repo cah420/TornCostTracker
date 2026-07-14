@@ -54,3 +54,7 @@ Item Store added.
 - Simplified Item Details Purchases to cost-basis summary, dates, and warnings.
 - Added local Purchases search without recreating the persistent DataGrid.
 - Added stable-key DataGrid row selection and selected-item highlighting.
+
+## v0.7.1-alpha1 - In-App README
+- Added a Readme route that renders the repository root README.md in the application.
+- Added a safe internal Markdown renderer, loading/error/retry states, and GitHub Pages-compatible relative paths.

@@ -8,6 +8,7 @@ import Dashboard from "./views/dashboard.js";
 import Items from "./views/items.js";
 import Purchases from "./views/purchases.js";
 import Statistics from "./views/statistics.js";
+import Readme from "./views/readme.js";
 import Settings from "./views/settings.js";
 
 async function applyVersion(){
@@ -26,7 +27,7 @@ async function applyVersion(){
   }
 }
 
-[Dashboard, Items, Purchases, Statistics, Settings].forEach((view) =>
+[Dashboard, Items, Purchases, Statistics, Readme, Settings].forEach((view) =>
   Router.register(view),
 );
 
