@@ -13,7 +13,7 @@ export default {
   route: "settings",
   title: "Settings",
 
-  render(){
+  render() {
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
@@ -25,7 +25,7 @@ export default {
       </p>
       <a
         class="api-key-generator"
-        href="https://www.torn.com/preferences.php#tab=api?step=addNewKey&amp;user=basic,bazaar,display,profile,inventory,itemmarket&amp;market=itemmarket,bazaar&amp;torn=items&amp;title=Torn%20Cost%20Tracker%20alpha1"
+        href="https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=Torn%20Cost%20Tool%20v060alpha3&user=basic,bazaar,display,profile,inventory,itemmarket,log&market=itemmarket,bazaar&torn=items"
         target="_blank"
         rel="noopener noreferrer"
       >Generate API Key</a>
@@ -47,11 +47,13 @@ export default {
     return card;
   },
 
-  async mount(){
+  async mount() {
     const apiKeyInput = document.getElementById("apiKey");
     const saveButton = document.getElementById("saveBtn");
     const message = document.getElementById("settingsMessage");
-    const clearPurchaseCacheButton = document.getElementById("clearPurchaseCacheBtn");
+    const clearPurchaseCacheButton = document.getElementById(
+      "clearPurchaseCacheBtn",
+    );
     const clearItemCacheButton = document.getElementById("clearItemCacheBtn");
     apiKeyInput.value = Settings.load().apiKey ?? "";
 
@@ -62,17 +64,20 @@ export default {
       message.className = "settings-message";
       message.textContent = "Saving API key...";
 
-      try{
+      try {
         const player = await PlayerStore.refresh();
         Events.emit("connectionChanged", { player });
         message.classList.add("settings-message--success");
         message.textContent = "API key successfully saved.";
-      }catch(error){
-        console.error("Unable to refresh player profile after saving API key:", error);
+      } catch (error) {
+        console.error(
+          "Unable to refresh player profile after saving API key:",
+          error,
+        );
         Events.emit("connectionChanged", { player: null });
         message.classList.add("settings-message--error");
         message.textContent = `Unable to validate API key: ${error.message}`;
-      }finally{
+      } finally {
         saveButton.disabled = false;
         saveButton.textContent = "Save";
       }
@@ -101,18 +106,26 @@ export default {
       `;
       document.body.appendChild(dialog);
 
-      const acknowledgement = dialog.querySelector("#confirmPurchaseCacheClear");
+      const acknowledgement = dialog.querySelector(
+        "#confirmPurchaseCacheClear",
+      );
       const confirm = dialog.querySelector("#confirmPurchaseCacheClearBtn");
-      acknowledgement.addEventListener("change", () => { confirm.disabled = !acknowledgement.checked; });
-      dialog.addEventListener("close", () => {
-        if (dialog.returnValue === "confirm" && acknowledgement.checked) {
-          PurchaseStore.clearAll();
-          Events.emit("purchaseCacheCleared");
-          message.className = "settings-message settings-message--success";
-          message.textContent = "Purchase cache cleared.";
-        }
-        dialog.remove();
-      }, { once: true });
+      acknowledgement.addEventListener("change", () => {
+        confirm.disabled = !acknowledgement.checked;
+      });
+      dialog.addEventListener(
+        "close",
+        () => {
+          if (dialog.returnValue === "confirm" && acknowledgement.checked) {
+            PurchaseStore.clearAll();
+            Events.emit("purchaseCacheCleared");
+            message.className = "settings-message settings-message--success";
+            message.textContent = "Purchase cache cleared.";
+          }
+          dialog.remove();
+        },
+        { once: true },
+      );
       dialog.showModal();
     });
 
@@ -137,18 +150,24 @@ export default {
 
       const acknowledgement = dialog.querySelector("#confirmItemCacheClear");
       const confirm = dialog.querySelector("#confirmItemCacheClearBtn");
-      acknowledgement.addEventListener("change", () => { confirm.disabled = !acknowledgement.checked; });
-      dialog.addEventListener("close", () => {
-        if (dialog.returnValue === "confirm" && acknowledgement.checked) {
-          ItemStore.clear();
-          ItemCatalogStore.clear();
-          ItemSyncService.clearState();
-          Events.emit("itemCacheCleared");
-          message.className = "settings-message settings-message--success";
-          message.textContent = "Item cache cleared.";
-        }
-        dialog.remove();
-      }, { once: true });
+      acknowledgement.addEventListener("change", () => {
+        confirm.disabled = !acknowledgement.checked;
+      });
+      dialog.addEventListener(
+        "close",
+        () => {
+          if (dialog.returnValue === "confirm" && acknowledgement.checked) {
+            ItemStore.clear();
+            ItemCatalogStore.clear();
+            ItemSyncService.clearState();
+            Events.emit("itemCacheCleared");
+            message.className = "settings-message settings-message--success";
+            message.textContent = "Item cache cleared.";
+          }
+          dialog.remove();
+        },
+        { once: true },
+      );
       dialog.showModal();
     });
   },
