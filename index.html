@@ -3,60 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>Torn Cost Tracker</title>
-
+    <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/items.css" />
   </head>
-
   <body>
     <div id="app">
       <aside id="sidebar">
         <div class="logo">
-          <div class="logo-icon">TCT</div>
-
+          <img class="logo-icon" src="assets/logo.png" alt="Torn Cost Tracker" />
           <div class="logo-text">
             <h2>Torn Cost Tracker</h2>
-
             <span id="version">Version loading...</span>
           </div>
         </div>
 
         <nav>
           <button class="nav-button active" data-page="dashboard">
-            <span class="nav-icon">🏠</span>
-
+            <span class="nav-icon"><img src="assets/dashboard.png" alt="" /></span>
             <span class="nav-text">Dashboard</span>
           </button>
-
           <button class="nav-button" data-page="items">
-            <span class="nav-icon">📦</span>
-
+            <span class="nav-icon"><img src="assets/items.png" alt="" /></span>
             <span class="nav-text">Items</span>
           </button>
-
           <button class="nav-button" data-page="purchases">
-            <span class="nav-icon">🛒</span>
-
+            <span class="nav-icon"><img src="assets/purchases.png" alt="" /></span>
             <span class="nav-text">Purchases</span>
           </button>
-
           <button class="nav-button" data-page="statistics">
-            <span class="nav-icon">📈</span>
-
+            <span class="nav-icon"><img src="assets/stats.png" alt="" /></span>
             <span class="nav-text">Statistics</span>
           </button>
-
           <button class="nav-button" data-page="readme">
-            <span class="nav-icon">?</span>
-
+            <span class="nav-icon"><img src="assets/readme.png" alt="" /></span>
             <span class="nav-text">Readme</span>
           </button>
-
           <button class="nav-button" data-page="settings">
-            <span class="nav-icon">⚙️</span>
-
+            <span class="nav-icon"><img src="assets/settings.png" alt="" /></span>
             <span class="nav-text">Settings</span>
           </button>
         </nav>
@@ -65,42 +50,33 @@
       <main>
         <header id="topBar">
           <div class="header-left">
-            <button id="sidebarToggle" title="Toggle Sidebar">☰</button>
-
+            <button id="sidebarToggle" title="Toggle Sidebar">&#9776;</button>
             <h1 id="pageTitle">Dashboard</h1>
           </div>
-
           <div class="header-right">
             <div id="status">
               <span class="status-dot"></span>
-
               <span id="statusText"> Ready </span>
             </div>
           </div>
         </header>
 
         <section id="content"></section>
-
         <footer>
           <div>Torn Cost Tracker</div>
-
           <div id="footerVersion">Release loading...</div>
         </footer>
       </main>
     </div>
 
     <div id="toastContainer"></div>
-
     <div id="loadingOverlay" class="hidden">
       <div class="loading-box">
         <div class="spinner"></div>
-
         <h2 id="loadingTitle">Loading...</h2>
-
         <p id="loadingMessage">Please wait...</p>
       </div>
     </div>
-
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

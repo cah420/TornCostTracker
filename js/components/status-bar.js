@@ -4,6 +4,7 @@
 import { Events } from "../events.js";
 import { ItemStore } from "../stores/items.js";
 import { PlayerStore } from "../stores/player.js";
+import { PurchaseStore } from "../stores/purchases.js";
 
 function formatDate(timestamp){
   return timestamp ? new Date(timestamp).toLocaleString() : "Never";
@@ -28,9 +29,14 @@ export class StatusBar {
       this.player = player ?? null;
       this.render();
     };
+    this.onPurchaseSyncCompleted = ()=>{
+      this.status = "Purchase synchronization complete.";
+      this.render();
+    };
     Events.on("statusChanged", this.onStatusChanged);
     Events.on("itemsSynced", this.onItemsSynced);
     Events.on("connectionChanged", this.onConnectionChanged);
+    Events.on("purchaseSyncCompleted", this.onPurchaseSyncCompleted);
     this.render();
   }
 
@@ -38,6 +44,12 @@ export class StatusBar {
     Events.off("statusChanged", this.onStatusChanged);
     Events.off("itemsSynced", this.onItemsSynced);
     Events.off("connectionChanged", this.onConnectionChanged);
+    Events.off("purchaseSyncCompleted", this.onPurchaseSyncCompleted);
+  }
+
+  lastPurchaseSync(){
+    if (!this.player?.id) return null;
+    return PurchaseStore.state(this.player.id).lastSuccessfulAt;
   }
 
   render(){
@@ -45,16 +57,19 @@ export class StatusBar {
     this.container.classList.add("tct-status-bar");
     this.container.appendChild(this.createPlayerIdentity());
     const values = [
-      ["Owned Items", this.statistics.uniqueItems],
-      ["Last Synchronization", formatDate(this.statistics.lastUpdated)],
+      ["Last Item Sync", formatDate(this.statistics.lastUpdated)],
+      ["Last Purchase Sync", formatDate(this.lastPurchaseSync())],
       ["Status", this.status],
     ];
+    const details = document.createElement("div");
+    details.className = "tct-status-bar__details";
     values.forEach(([label, value])=>{
       const item = document.createElement("span");
       item.className = "tct-status-bar__item";
       item.textContent = `${label}: ${value}`;
-      this.container.appendChild(item);
+      details.appendChild(item);
     });
+    this.container.appendChild(details);
   }
 
   createPlayerIdentity(){

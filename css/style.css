@@ -75,19 +75,8 @@ input {
   height: 54px;
 
   border-radius: 14px;
-
-  background: var(--primary);
-
-  display: flex;
-
-  justify-content: center;
-  align-items: center;
-
-  font-weight: bold;
-
-  font-size: 1.1rem;
-
-  color: white;
+  flex: 0 0 54px;
+  object-fit: cover;
 }
 
 .logo-text h2 {
@@ -141,11 +130,25 @@ nav {
 }
 
 .nav-icon {
-  width: 24px;
+  width: 48px;
+
+  height: 48px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
 
   text-align: center;
 
   font-size: 1.1rem;
+}
+
+.nav-icon img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
 }
 
 .nav-text {
@@ -161,7 +164,7 @@ main {
 }
 
 #topBar {
-  height: 72px;
+  height: 88px;
 
   border-bottom: 1px solid var(--border);
 
@@ -223,19 +226,31 @@ main {
 
   background: var(--surface-light);
 
-  padding: 10px 16px;
+  padding: 8px 16px;
 
   border-radius: 999px;
 }
 
 .tct-status-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px 14px;
-  max-width: 720px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  max-width: 620px;
   color: var(--text-muted);
   font-size: 0.78rem;
+}
+
+.tct-status-bar__details {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tct-status-bar__item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tct-status-bar__item:last-child {
@@ -247,6 +262,8 @@ main {
   align-items: center;
   gap: 8px;
   color: var(--text);
+  align-self: center;
+  white-space: nowrap;
 }
 
 .tct-status-bar__avatar {
@@ -497,7 +514,7 @@ main {
 }
 .tct-readme__content pre {
   overflow-x: auto;
-  padding: 14px;
+  padding: 2px 14px 2px 2px;
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 8px;

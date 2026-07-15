@@ -11,10 +11,14 @@ const TRAVEL_AREAS = Object.freeze({
   // Confirmed from `Item abroad buy` logs.
   2: "Mexico",
   3: "Hawaii",
+  4: "South Africa",
+  5: "Japan",
   6: "China",
+  7: "Argentina",
   8: "Switzerland",
   9: "Canada",
   10: "United Kingdom",
+  11: "UAE",
   12: "Cayman Islands",
 });
 const TITLE = {

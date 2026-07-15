@@ -63,7 +63,7 @@
 - Confirm an abroad purchase with a logged country displays as `Abroad - [Country]`; confirm Qty and Item Name are separate sortable DataGrid columns.
 - Open Purchases with an empty `tct.itemCatalog`: the catalog downloads once and historical item IDs refresh to Torn item names; reload to confirm the catalog persists locally.
 - Confirm an `Item abroad buy` log with `area: 12` displays as `Abroad - Cayman Islands`.
-- Confirm the known travel-log area mappings display the correct country: Mexico (2), Hawaii (3), China (6), Switzerland (8), Canada (9), United Kingdom (10), and Cayman Islands (12).
+- Confirm travel-log area mappings display the correct country: Mexico (2), Hawaii (3), South Africa (4), Japan (5), China (6), Argentina (7), Switzerland (8), Canada (9), United Kingdom (10), UAE (11), and Cayman Islands (12).
 - Confirm Purchases displays separate Cost Each and Total Cost columns; unresolved multi-item trade lines retain Unknown costs.
 
 ## Sprint 8 - Current Holdings Cost Basis

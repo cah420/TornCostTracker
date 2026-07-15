@@ -44,6 +44,7 @@ Item Store added.
 - Added a persistent global Torn Item Catalog for complete purchase item-name resolution.
 - Corrected the confirmed travel-log area mapping for Cayman Islands.
 - Added confirmed Mexico, Hawaii, China, Switzerland, Canada, and United Kingdom travel-log area mappings.
+- Completed confirmed Abroad purchase area mappings for South Africa, Japan, Argentina, and UAE.
 
 ## Sprint 8 - Current Holdings Cost Basis
 - Added CostBasisService for newest-acquisition-first current-holdings estimates with partial-lot matching.
@@ -58,3 +59,8 @@ Item Store added.
 ## v0.7.1-alpha1 - In-App README
 - Added a Readme route that renders the repository root README.md in the application.
 - Added a safe internal Markdown renderer, loading/error/retry states, and GitHub Pages-compatible relative paths.
+
+## v0.7.2-alpha1 - Tester Experience Polish
+- Added application branding and section-specific navigation icons.
+- Refined the application status area to show player identity, item sync, purchase sync, and current status clearly.
+- Completed the confirmed Torn Abroad purchase-area mapping.

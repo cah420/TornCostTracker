@@ -2,7 +2,7 @@
 
 Torn Cost Tracker is an early desktop-style web application for tracking your currently owned Torn items and estimating the purchase cost of the units you still hold.
 
-**Current version:** 0.7.0-alpha1 (the application reads its version from [version.json](version.json)).
+**Current version:** 0.7.2-alpha1 (the application reads its version from [version.json](version.json)).
 
 This alpha is intended for player testing. Data is stored locally in your browser on the device where you run the application.
 
@@ -15,6 +15,7 @@ This alpha is intended for player testing. Data is stored locally in your browse
 - Imports purchase-related log history for a chosen 1-180 day period, then supports incremental purchase syncs.
 - Recognizes Bazaar, Item Market, City Shop, Abroad Shop, and trade acquisitions where Torn log data permits.
 - Provides sortable, searchable Items and Purchases tables.
+- Includes an in-app Readme page sourced directly from this file.
 - Estimates current-holdings cost basis using newest known purchases first, including partial lots.
 - Separately reports quantity coverage and reliably priced coverage so unknown costs are not presented as zero.
 
@@ -46,7 +47,7 @@ Your API key is saved only in local browser storage on your device. Do not share
 - **Cost basis is an estimate:** it matches current holdings against the newest imported acquisitions first. It cannot fully account for gifts, crimes, rewards, sales, item use, transfers, or purchases before the chosen import window.
 - **Unresolved trades:** multi-item trades with a combined cash amount are counted as acquired quantity, but their cost is intentionally shown as unknown unless Torn's log data supports a safe prior allocation.
 - **Purchase history range:** the initial import is limited to 1-180 days. Older purchase history is not yet imported automatically.
-- **Travel locations:** Abroad purchases use Torn’s logged area mapping. The currently confirmed country mappings cover Mexico, Hawaii, China, Switzerland, Canada, United Kingdom, and Cayman Islands; unconfirmed areas may show simply as `Abroad`.
+- **Travel locations:** Abroad purchases use Torn's logged area mapping for Mexico, Hawaii, South Africa, Japan, China, Argentina, Switzerland, Canada, United Kingdom, UAE, and Cayman Islands.
 - **Local-only storage:** clearing browser/site data, using a different browser/profile, or selecting either clear-cache action removes the corresponding local data. This alpha has no account or cloud backup.
 - **Historical features:** snapshots are saved locally as a foundation for future reporting; portfolio charts, profit/loss, sale ingestion, and exact inventory accounting are not implemented yet.
 
