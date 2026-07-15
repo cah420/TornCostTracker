@@ -112,6 +112,8 @@
 ## Sprint 8.2 - Acquisition Source Expansion
 
 - Verify paid lots contribute known cash cost, while confirmed zero-cost lots contribute quantity and $0 to the average/low price.
+- Import or normalize a `Faction give item receive` (log type 6733) entry with `data.item: [{ id, qty }]`: confirm it appears as Faction Gift, retains the item quantity, and contributes a confirmed $0 cash lot without matching faction loans or other faction events.
+- Import or normalize a `City item find` (log type 7011) entry with scalar `data.item`: confirm it appears as City Find, defaults to one item, and contributes a confirmed $0 cash lot without matching other City events.
 - Verify non-cash and unresolved lots contribute matched quantity but not priced quantity or known cash cost.
 - Verify Bazaar add/remove/edit/open-close/sell and trade initiate/expire/item-add lifecycle logs do not create acquisitions.
 - During a purchase sync, inspect only the bounded `Unsupported incoming acquisition signatures` console diagnostic. It must list no values beyond log type, title, field names, and occurrence count.

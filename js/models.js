@@ -137,6 +137,7 @@ export const ACQUISITION_SOURCE_TYPES = Object.freeze([
   "crimeReward",
   "eventReward",
   "companyReward",
+  "cityFind",
   "itemConversion",
   "other",
   "unknown",

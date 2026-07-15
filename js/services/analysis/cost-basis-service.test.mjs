@@ -131,4 +131,45 @@ const lifecycleLogs = [
 ];
 assert.equal(normalizeAcquisitionLogs(lifecycleLogs).length, 0);
 
+// Verified faction gifts are free external acquisitions. The Torn payload uses
+// `item` as an array and may use its object key as the stable log ID.
+const factionGiftRecords = normalizeAcquisitionLogs({
+  "hxMTExVa7IYCQzs3WJIS": {
+    log: 6733,
+    title: "Faction give item receive",
+    timestamp: 1784095796,
+    data: { sender: 3324031, faction: 52218, item: [{ id: 12, uid: 13919923075, qty: 1 }] },
+  },
+});
+assert.equal(factionGiftRecords.length, 1);
+assert.equal(factionGiftRecords[0].id, "log:hxMTExVa7IYCQzs3WJIS");
+assert.equal(factionGiftRecords[0].sourceType, "factionGift");
+assert.equal(factionGiftRecords[0].counterpartyId, 3324031);
+assert.equal(factionGiftRecords[0].acquisitionKind, "free");
+assert.equal(factionGiftRecords[0].costStatus, "zero");
+assert.equal(factionGiftRecords[0].totalCashCost, 0);
+assert.deepEqual(factionGiftRecords[0].itemLines, [{ itemId: 12, quantity: 1, knownUnitCost: 0, knownLineTotal: 0 }]);
+result = CostBasisService.calculate({ id: 12, totalQuantity: 1 }, factionGiftRecords);
+assert.equal(result.zeroCostQuantity, 1);
+assert.equal(result.totalKnownCost, 0);
+
+// A verified City Map find is a free one-unit external acquisition.
+const cityFindRecords = normalizeAcquisitionLogs({
+  "IZviLhHM56C9EYiT04EO": {
+    log: 7011,
+    title: "City item find",
+    timestamp: 1784098582,
+    data: { item: 273 },
+  },
+});
+assert.equal(cityFindRecords.length, 1);
+assert.equal(cityFindRecords[0].id, "log:IZviLhHM56C9EYiT04EO");
+assert.equal(cityFindRecords[0].sourceType, "cityFind");
+assert.equal(cityFindRecords[0].acquisitionKind, "free");
+assert.equal(cityFindRecords[0].costStatus, "zero");
+assert.deepEqual(cityFindRecords[0].itemLines, [{ itemId: 273, quantity: 1, knownUnitCost: 0, knownLineTotal: 0 }]);
+result = CostBasisService.calculate({ id: 273, totalQuantity: 1 }, cityFindRecords);
+assert.equal(result.zeroCostQuantity, 1);
+assert.equal(result.totalKnownCost, 0);
+
 console.log("CostBasisService deterministic tests passed.");

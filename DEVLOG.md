@@ -8,6 +8,10 @@ HTTP 429 and equivalent Torn rate-limit errors remain at the head of the ordered
 
 InventoryImporter already reports its active category. ItemSyncService now turns that importer progress into user-facing messages such as `Downloading Inventory: Melee (5/25)...`, so the upper-right status bar and Items progress text identify the work in progress without coupling UI components to importer internals.
 
+`PurchaseLogImporter` now recognizes the exact Torn title `Faction give item receive` (log type 6733) as a verified external Faction Gift. Its `data.item` array is normalized into canonical item lines with `acquisitionKind: free` and `costStatus: zero`, producing a valid $0 known-cash lot. This matcher deliberately does not include faction loans, returns, rewards, or other faction events without separately verified direction and payloads.
+
+The exact `City item find` title (log type 7011) is also a verified external City Find. Its scalar `data.item` ID normalizes to one free, zero-cash item line; a future explicit quantity would be preserved by the same normalizer. Other City events remain excluded until their direction and payloads are confirmed.
+
 ## Sprint 2 - Data Model Consolidation
 
 Inventory data now flows through a dedicated importer:

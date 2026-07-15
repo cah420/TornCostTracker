@@ -6,6 +6,8 @@ Item Store added.
 - Kept every Torn v1 and v2 request in one ordered, single-request scheduler, covering profile, inventory, Bazaar, Display Case, Item Market, logs, and the item catalog.
 - Added conservative ordered rate-limit backoff (5, 10, then 20 seconds) with a visible status message and no request burst after idle or background-tab delays.
 - Updated Inventory status text to name the category currently being downloaded.
+- Added verified `Faction give item receive` ingestion as a Faction Gift with a confirmed $0 cash cost.
+- Added verified `City item find` ingestion as a City Find with a confirmed $0 cash cost.
 
 ## v0.5.3.1
 - Improved sortable table UX.

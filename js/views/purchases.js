@@ -26,6 +26,8 @@ function sourceLabel(record){
     cityShop: "City Shop",
     abroadShop: "Abroad",
     trade: "Trade",
+    factionGift: "Faction Gift",
+    cityFind: "City Find",
     unknown: "Unknown",
   }[record.sourceType] ?? record.sourceType;
   return record.sourceType === "abroadShop" && record.sourceLocation

@@ -15,6 +15,7 @@ const SUPPORTED_SOURCES = new Set([
   "crimeReward",
   "eventReward",
   "companyReward",
+  "cityFind",
   "itemConversion",
   "other",
 ]);
@@ -36,6 +37,7 @@ function sourceLabel(record){
     crimeReward: "Crime Reward",
     eventReward: "Event Reward",
     companyReward: "Company Reward",
+    cityFind: "City Find",
     itemConversion: "Item Conversion",
   };
   const name = names[record.sourceType] ?? record.sourceType;
