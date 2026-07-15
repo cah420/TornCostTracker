@@ -64,3 +64,7 @@ Item Store added.
 - Added application branding and section-specific navigation icons.
 - Refined the application status area to show player identity, item sync, purchase sync, and current status clearly.
 - Completed the confirmed Torn Abroad purchase-area mapping.
+
+## v0.7.2-alpha2 - Collapsible Sidebar Navigation
+- Added a persisted, accessible sidebar collapse control with icon-only navigation mode.
+- Added smooth layout transitions and reduced-motion support.

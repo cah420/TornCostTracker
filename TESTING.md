@@ -92,3 +92,12 @@
 - Update README.md, redeploy, and reload the browser: confirm the Readme route displays the deployed revision.
 - Navigate away from Readme and back: confirm navigation remains functional and the README is shown again.
 - Run `node --experimental-default-type=module js/services/markdown-renderer.test.mjs` to validate headings, lists, links, fenced code, relative paths, and safe raw-HTML handling.
+
+## v0.7.2-alpha2 - Collapsible Sidebar Navigation
+
+- Select the hamburger button: confirm the sidebar collapses to icon-only navigation, the main content expands, and the active route remains highlighted.
+- Hover or focus each collapsed navigation icon: confirm its native page-name tooltip and accessible button label remain available; navigate through every route in both states.
+- Reload while collapsed, then expanded: confirm the preferred state persists and the hamburger's label and `aria-expanded` state are correct.
+- Enable reduced motion in the operating system/browser: confirm sidebar transitions are effectively disabled.
+- Check Items, Item Details, Purchases, Readme, Settings, status bar, and footer in both sidebar states for overlap or page-wide horizontal overflow.
+- Run `node --experimental-default-type=module js/sidebar-controller.test.mjs` to validate state toggle, ARIA updates, and persistence.

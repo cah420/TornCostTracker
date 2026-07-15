@@ -29,3 +29,9 @@ DataGrid remains display-state only. Consumers may configure `rowKey` or `getRow
 `Readme view -> fetch root README.md -> markdown-renderer -> application content area`
 
 The Readme view fetches the repository's root README at runtime and only caches it for the current browser session. `markdown-renderer` creates DOM nodes directly for headings, paragraphs, lists, links, inline and fenced code, blockquotes, horizontal rules, tables, and images. Raw Markdown HTML is unsupported and rendered as text. Links and images resolve relative to the deployed application directory, allowing the same relative README references to work through Live Server and GitHub Pages. Unsafe URL protocols are rejected; external links receive `target="_blank"` and `rel="noopener noreferrer"`.
+
+## Application shell navigation
+
+`sidebar-controller -> body.sidebar-collapsed -> shell CSS layout`
+
+The application shell stores one local preference, `tct.ui.sidebarCollapsed`. The controller restores it on startup and updates the toggle's ARIA state; CSS controls the sidebar and main-content grid widths, collapsed branding and labels, icon alignment, and reduced-motion behavior. Routed views do not own or depend on sidebar state.

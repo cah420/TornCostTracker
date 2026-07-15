@@ -2,7 +2,7 @@
 
 Torn Cost Tracker is an early desktop-style web application for tracking your currently owned Torn items and estimating the purchase cost of the units you still hold.
 
-**Current version:** 0.7.2-alpha1 (the application reads its version from [version.json](version.json)).
+**Current version:** 0.7.2-alpha2 (the application reads its version from [version.json](version.json)).
 
 This alpha is intended for player testing. Data is stored locally in your browser on the device where you run the application.
 
@@ -16,6 +16,7 @@ This alpha is intended for player testing. Data is stored locally in your browse
 - Recognizes Bazaar, Item Market, City Shop, Abroad Shop, and trade acquisitions where Torn log data permits.
 - Provides sortable, searchable Items and Purchases tables.
 - Includes an in-app Readme page sourced directly from this file.
+- Supports a collapsible sidebar that remembers the preferred layout on this device.
 - Estimates current-holdings cost basis using newest known purchases first, including partial lots.
 - Separately reports quantity coverage and reliably priced coverage so unknown costs are not presented as zero.
 

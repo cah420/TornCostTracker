@@ -3,6 +3,7 @@ import { Events } from "./events.js";
 import { StatusBar } from "./components/status-bar.js";
 import { PlayerStore } from "./stores/player.js";
 import { SnapshotService } from "./services/history/snapshot-service.js";
+import { initializeSidebarToggle } from "./sidebar-controller.js";
 
 import Dashboard from "./views/dashboard.js";
 import Items from "./views/items.js";
@@ -31,6 +32,7 @@ async function applyVersion(){
   Router.register(view),
 );
 
+initializeSidebarToggle();
 new StatusBar(document.getElementById("status"));
 SnapshotService.start();
 void applyVersion();
