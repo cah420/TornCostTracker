@@ -41,6 +41,14 @@ function setSourceState(source, state, label, detail = null){
   persistState();
 }
 
+function progressMessage(source, name, details){
+  if (source !== "inventory" || !details?.category) return `Downloading ${name}...`;
+  const position = Number.isFinite(Number(details.current)) && Number.isFinite(Number(details.total))
+    ? ` (${details.current}/${details.total})`
+    : "";
+  return `Downloading Inventory: ${details.category}${position}...`;
+}
+
 async function synchronizeSource({ source, name, importer, progress }){
   setSourceState(source, "loading", "Synchronizing");
   report(progress,{stage:source,status:"loading",message:`Downloading ${name}...`});
@@ -49,7 +57,7 @@ async function synchronizeSource({ source, name, importer, progress }){
     const result = await importer.import((details)=>report(progress,{
       stage:source,
       status:"loading",
-      message:`Downloading ${name}...`,
+      message:progressMessage(source, name, details),
       details,
     }));
 

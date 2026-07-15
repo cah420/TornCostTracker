@@ -1,5 +1,13 @@
 # Development Log
 
+## v0.7.3-alpha2 - Data Acquisition Performance
+
+All Torn API endpoints now share `TornRequestQueue` in `js/api-queue.js`. The queue allows one request at a time and records each request start, enforcing a 1,200 ms minimum before the next start rather than adding a fixed pause after the prior response. This targets roughly 50 starts per minute, deliberately below Torn's stated allowance so gameplay, other browser tabs, timing variation, and future sources retain headroom.
+
+HTTP 429 and equivalent Torn rate-limit errors remain at the head of the ordered queue for conservative retries: 5 seconds, then 10, then 20 seconds, capped at three retries. Other failures continue to propagate without blocking later queued work. The queue emits a status message for rate-limit backoff without exposing request URLs, API keys, or response data.
+
+InventoryImporter already reports its active category. ItemSyncService now turns that importer progress into user-facing messages such as `Downloading Inventory: Melee (5/25)...`, so the upper-right status bar and Items progress text identify the work in progress without coupling UI components to importer internals.
+
 ## Sprint 2 - Data Model Consolidation
 
 Inventory data now flows through a dedicated importer:

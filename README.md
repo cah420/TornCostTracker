@@ -2,7 +2,7 @@
 
 Torn Cost Tracker is an early desktop-style web application for tracking your currently owned Torn items and estimating the purchase cost of the units you still hold.
 
-**Current version:** 0.7.3-alpha1 (the application reads its version from [version.json](version.json)).
+**Current version:** 0.7.3-alpha2 (the application reads its version from [version.json](version.json)).
 
 This alpha is intended for player testing. Data is stored locally in your browser on the device where you run the application.
 
@@ -10,6 +10,7 @@ This alpha is intended for player testing. Data is stored locally in your browse
 
 - Connects to Torn using a limited-access API key.
 - Downloads and combines owned items from Inventory, Bazaar, Display Case, and Item Market.
+- Uses one ordered Torn API scheduler for item, catalog, profile, and purchase-log requests, targeting approximately 50 request starts per minute to leave room for normal gameplay and other tools.
 - Shows each item's total quantity and populated locations.
 - Caches owned items, the Torn item catalog, player profile, synchronization status, and snapshots locally.
 - Imports purchase-related log history for a chosen 1-180 day period, then supports incremental purchase syncs.
@@ -67,6 +68,7 @@ Feedback is most useful when it includes the expected result, actual result, and
 - Cost-basis results that look incorrect. Include the item, current quantity, relevant purchase dates/amounts, and whether any units came from non-purchase sources.
 - Search, sort, selection, layout, mobile/desktop display, or accessibility issues.
 - API-key validation, synchronization, or cache-clear errors.
+- Any Torn rate-limit message encountered during ordinary synchronization, including the action being run and approximate time.
 
 Please do **not** include your API key in a report. If a Torn log is helpful, remove player-identifying information unless it is necessary to diagnose the issue.
 

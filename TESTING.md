@@ -1,5 +1,12 @@
 # Manual verification
 
+## v0.7.3-alpha2 - Data Acquisition Performance
+
+- Run `node --experimental-default-type=module js/api-queue.test.mjs`: confirm 1,200 ms request-start spacing, stable queue order, no concurrent work, no idle-queue burst, recoverable failure handling, and rate-limit backoff.
+- Run `node --experimental-default-type=module js/api.test.mjs`: confirm Torn v1 and v2 endpoint methods enter the same shared scheduler.
+- Refresh Items and watch the upper-right status line: it identifies the current category, for example `Downloading Inventory: Melee (5/25)...`; categories continue in order and the final summary remains accurate.
+- For a controlled comparison, record the item-sync request count and elapsed duration before/after this release. Repeat for purchase history with the selected lookback period, recording page count and duration. Confirm no missing or duplicated records, no out-of-order pages, and no ordinary-use rate-limit errors. Avoid repeated cache-cleared large imports solely to stress Torn's API.
+
 - Load the Items page with cached inventory: Quantity is initially sorted descending.
 - Select each column header and select it again: the first selection is descending and the second is ascending.
 - Change the sort, navigate away and back, then reload: the Items grid retains its selected column and direction.

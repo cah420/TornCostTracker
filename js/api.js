@@ -2,23 +2,65 @@
 import { Settings } from "./settings.js";
 import { Logger } from "./logger.js";
 import { createPlayer } from "./models.js";
+import { Events } from "./events.js";
+import {
+ TornRequestQueue,
+ TORN_REQUEST_INTERVAL_MS,
+} from "./api-queue.js";
 
 const BASE_V2="https://api.torn.com/v2";
 const BASE_V1="https://api.torn.com";
-const DELAY=2500;
-let queue=Promise.resolve();
-const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+let requestQueue = new TornRequestQueue({
+ onRateLimitRetry: ({ retryCount, backoffMs }) => {
+  const seconds = Math.ceil(backoffMs / 1000);
+  Events.emit("statusChanged", {
+   stage: "api",
+   status: "rateLimited",
+   message: `Torn API rate limit reached. Retrying in ${seconds} seconds (attempt ${retryCount}).`,
+  });
+ },
+});
 
 function url(base,ep,key){return `${base}${ep}${ep.includes("?")?"&":"?"}key=${encodeURIComponent(key)}`;}
 
+function rateLimitError(response, data){
+ const message = String(data?.error?.error ?? data?.error ?? "");
+ return response.status === 429 || Number(data?.error?.code) === 5 || /rate\s*limit|too many requests/i.test(message);
+}
+
+function responseError(response, data){
+ const message = data?.error?.error ?? data?.error ?? `Torn API request failed (${response.status}).`;
+ const error = new Error(message);
+ error.isTornRateLimit = rateLimitError(response, data);
+ return error;
+}
+
 async function request(ep,base=BASE_V2){
  const {apiKey}=Settings.load();
- queue=queue.then(async()=>{const r=await fetch(url(base,ep,apiKey));await sleep(DELAY);return r;});
- const resp=await queue;
- const data=await resp.json();
- if(data.error){Logger.error(data.error);throw new Error(data.error.error);}
- return data;
+ try {
+  return await requestQueue.enqueue(async()=>{
+   const response = await fetch(url(base,ep,apiKey));
+   let data;
+   try {
+    data = await response.json();
+   } catch {
+    data = null;
+   }
+   if (!response.ok || data?.error) throw responseError(response, data);
+   return data;
+  });
+ } catch (error) {
+  Logger.error(error.message);
+  throw error;
+ }
 }
+
+// Test-only seams keep scheduler timing deterministic without exposing a user setting.
+export function setTornRequestQueueForTesting(queue){ requestQueue = queue; }
+export function resetTornRequestQueueForTesting(){
+ requestQueue = new TornRequestQueue();
+}
+export { TORN_REQUEST_INTERVAL_MS };
 
 export const API={
  async testConnection(){

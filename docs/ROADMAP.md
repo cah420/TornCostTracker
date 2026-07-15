@@ -16,7 +16,7 @@
 - Base-item aggregation for uniquely-instanced equipment across all owned locations.
 
 ## Synchronization enhancements
-- Retry policies, scheduling, and persisted refresh summaries in ItemSyncService.
+- Shared ordered Torn API scheduling at a conservative 1,200 ms start interval, with bounded rate-limit backoff and persisted refresh summaries in ItemSyncService.
 
 ## Future
 - Cost-basis allocation for unresolved trades.

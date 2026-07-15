@@ -1,5 +1,13 @@
 # Architecture
 
+## Torn API scheduling
+
+`API endpoint method -> TornRequestQueue -> fetch -> importer/service`
+
+`js/api.js` is the only application module that calls Torn. Its v1 and v2 endpoint methods use the same `TornRequestQueue` instance in `js/api-queue.js`, so profile validation, owned-item sources, purchase-log pages, and item-catalog requests retain one deterministic order. The queue permits one active request and enforces a 1,200 ms minimum interval between request starts (about 50 starts per minute), rather than a fixed post-response pause. This intentionally leaves headroom below Torn's stated request allowance for normal gameplay, other tabs/tools, timing variation, and later synchronization sources.
+
+If Torn returns HTTP 429 or an equivalent rate-limit error, the queued request retries in place after 5, 10, and 20 seconds at most. The queue emits a concise status event while waiting. Failed requests do not block later work, and a delayed browser timer cannot cause a catch-up burst because each new request still becomes the sole next start.
+
 ## Owned items
 
 `Torn API -> source importer -> ItemSyncService -> ItemStore -> OwnedItem -> views`
