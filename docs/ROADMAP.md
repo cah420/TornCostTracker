@@ -12,10 +12,13 @@
 - Local purchase-history search and stable selected-row behavior in DataGrid.
 - In-app tester documentation sourced from the root README.
 - Persisted, accessible collapsible desktop sidebar navigation.
+- Known cash cost-basis classifications for paid, zero-cost, non-cash, and unresolved acquisition lots.
+- Base-item aggregation for uniquely-instanced equipment across all owned locations.
 
 ## Synchronization enhancements
 - Retry policies, scheduling, and persisted refresh summaries in ItemSyncService.
 
 ## Future
 - Cost-basis allocation for unresolved trades.
+- Per-instance equipment details such as UID, weapon/armor stats, bonuses, and equipped state.
 - Purchase history, portfolio growth, and historical reporting views.

@@ -61,3 +61,13 @@ The Readme view fetches the root `README.md` through the normal view lifecycle a
 ## v0.7.2-alpha2 - Collapsible Sidebar Navigation
 
 `sidebar-controller` owns one application-shell preference, `tct.ui.sidebarCollapsed`. It restores the preference during application startup, toggles one semantic class on `body`, and updates the hamburger button's accessible state. CSS owns all layout changes: sidebar grid width, main-content expansion, label/branding visibility, and motion. Views and reusable components remain unaware of sidebar state.
+
+## Sprint 8.2 - Acquisition Source Expansion
+
+Acquisitions now carry explicit `acquisitionKind`, `costStatus`, and `acquisitionMethod` fields. Paid/known and confirmed free/zero-cost lots are priced cash lots; non-cash and unresolved lots remain matched quantities but never receive an invented cash value. Legacy cached acquisitions migrate to the paid/known model unless their existing allocation status is unresolved.
+
+PurchaseLogImporter continues to normalize only verified paid sources and existing trade behavior. Bazaar add/remove/edit/open-close/sell and confirmed trade lifecycle entries are excluded as internal movement or lifecycle events. Its development diagnostic emits only unsupported item-bearing signature metadata: log type, title, field names, and occurrence count.
+
+## v0.7.3-alpha1 - Expanded Acquisition Coverage & Quantity Accuracy
+
+This release expands the acquisition-cost foundation while improving owned-item accuracy. Importers continue to decode verified paid sources and now retain explicit cash-cost semantics for future acquisition types. They also decode source rows with a quantity fallback of one for UID-style equipment rows with no amount. ItemStore owns same-source batch aggregation: it sums normalized rows by base item ID and source before replacing that source's prior cached quantity. This makes refreshes idempotent and keeps one canonical OwnedItem per base ID. UID and equipment-stat metadata are intentionally not persisted until a dedicated instance-detail feature defines how it will be used.

@@ -10,6 +10,13 @@ const SUPPORTED_SOURCES = new Set([
   "cityShop",
   "abroadShop",
   "trade",
+  "playerGift",
+  "factionGift",
+  "crimeReward",
+  "eventReward",
+  "companyReward",
+  "itemConversion",
+  "other",
 ]);
 
 function positiveQuantity(value){
@@ -24,6 +31,12 @@ function sourceLabel(record){
     cityShop: "City Shop",
     abroadShop: "Abroad",
     trade: "Trade",
+    playerGift: "Player Gift",
+    factionGift: "Faction Gift",
+    crimeReward: "Crime Reward",
+    eventReward: "Event Reward",
+    companyReward: "Company Reward",
+    itemConversion: "Item Conversion",
   };
   const name = names[record.sourceType] ?? record.sourceType;
   return record.sourceType === "abroadShop" && record.sourceLocation
@@ -51,9 +64,14 @@ function eligibleLines(itemId, acquisitions){
 }
 
 function isResolvedPricedLot(record, line){
-  return record.allocationStatus !== "unresolved" &&
+  return ["known", "zero"].includes(record.costStatus ?? (record.allocationStatus === "unresolved" ? "unresolved" : "known")) &&
+    record.allocationStatus !== "unresolved" &&
     Number.isFinite(line.knownUnitCost) &&
     line.knownUnitCost >= 0;
+}
+
+function costStatusFor(record){
+  return record.costStatus ?? (record.allocationStatus === "unresolved" ? "unresolved" : "known");
 }
 
 /**
@@ -70,6 +88,9 @@ export const CostBasisService = {
     let remainingQuantity = currentQuantity;
     let matchedQuantity = 0;
     let pricedQuantity = 0;
+    let paidQuantity = 0;
+    let zeroCostQuantity = 0;
+    let nonCashQuantity = 0;
     let unresolvedQuantity = 0;
     let totalKnownCost = 0;
 
@@ -79,6 +100,7 @@ export const CostBasisService = {
 
         const quantityAcquired = positiveQuantity(line.quantity);
         const quantityUsed = Math.min(quantityAcquired, remainingQuantity);
+        const costStatus = costStatusFor(record);
         const costResolved = isResolvedPricedLot(record, line);
         const knownUnitCost = costResolved ? Number(line.knownUnitCost) : null;
         const knownAllocatedCost = costResolved ? knownUnitCost * quantityUsed : null;
@@ -94,6 +116,9 @@ export const CostBasisService = {
           knownUnitCost,
           knownAllocatedCost,
           costResolved,
+          acquisitionKind: record.acquisitionKind ?? (costStatus === "unresolved" ? "unresolved" : "paid"),
+          costStatus,
+          acquisitionMethod: record.acquisitionMethod ?? record.sourceType,
           tradeId: record.tradeId ?? null,
           counterpartyId: record.counterpartyId ?? null,
         });
@@ -103,6 +128,10 @@ export const CostBasisService = {
         if (costResolved) {
           pricedQuantity += quantityUsed;
           totalKnownCost += knownAllocatedCost;
+          if (costStatus === "zero") zeroCostQuantity += quantityUsed;
+          else paidQuantity += quantityUsed;
+        } else if (costStatus === "nonCash") {
+          nonCashQuantity += quantityUsed;
         } else {
           unresolvedQuantity += quantityUsed;
         }
@@ -121,6 +150,9 @@ export const CostBasisService = {
     if (unresolvedQuantity > 0) {
       warnings.push("Some matched units came from unresolved acquisitions, such as multi-item trades.");
     }
+    if (nonCashQuantity > 0) {
+      warnings.push("Some matched units came from non-cash acquisitions. They are not included in the known cash cost basis.");
+    }
     if (pricedQuantity === 0 && currentQuantity > 0) {
       warnings.push("No priced acquisitions were found for the currently owned units.");
     }
@@ -131,6 +163,9 @@ export const CostBasisService = {
       currentQuantity,
       matchedQuantity,
       pricedQuantity,
+      paidQuantity,
+      zeroCostQuantity,
+      nonCashQuantity,
       unresolvedQuantity,
       unmatchedQuantity,
       quantityCoveragePercent: currentQuantity ? matchedQuantity / currentQuantity * 100 : 0,

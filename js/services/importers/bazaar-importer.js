@@ -7,7 +7,7 @@ import { OwnedItem } from "../../models.js";
 
 const PAGE_SIZE = 100;
 
-function normalizeBazaarItem(item, timestamp){
+export function normalizeBazaarItem(item, timestamp){
   const id = item.id ?? item.ID ?? item.item_id;
 
   return new OwnedItem({
@@ -15,7 +15,7 @@ function normalizeBazaarItem(item, timestamp){
     name: item.name ?? item.item_name ?? `Item #${id}`,
     category: item.category ?? item.type ?? "Unknown",
     locations: {
-      bazaar: { quantity: item.quantity ?? item.amount ?? item.qty, updated: timestamp },
+      bazaar: { quantity: item.quantity ?? item.amount ?? item.qty ?? 1, updated: timestamp },
     },
     metadata: {
       created: timestamp,

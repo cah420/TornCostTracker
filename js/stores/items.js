@@ -22,6 +22,31 @@ function itemCopies(){
  return items.map((item)=>OwnedItem.from(item, item.metadata.created));
 }
 
+function aggregateIncomingItems(incomingItems,timestamp){
+ const aggregated=new Map();
+ incomingItems.forEach((incomingItem)=>{
+  const incoming=OwnedItem.from(incomingItem,timestamp);
+  const key=String(incoming.id);
+  const existing=aggregated.get(key);
+  if(!existing){
+   aggregated.set(key,incoming);
+   return;
+  }
+
+  existing.name=incoming.name || existing.name;
+  existing.category=incoming.category || existing.category;
+  incoming.metadata.sources.forEach((source)=>{
+   existing.setLocation(
+    source,
+    existing.locationQuantity(source)+incoming.locationQuantity(source),
+    incoming.locations[source].updated,
+   );
+   existing.updateMetadata({source,timestamp});
+  });
+ });
+ return [...aggregated.values()];
+}
+
 export const ItemStore={
  items(){return itemCopies();},
  search(q){
@@ -45,9 +70,9 @@ export const ItemStore={
   Storage.remove(UPDATED);
   Storage.remove(TORN_TS);
  },
- merge(incomingItems,{replaceSources=[]}={}){
+ merge(incomingItems=[],{replaceSources=[]}={}){
   const timestamp=Date.now();
-  const collection=new Map(items.map((item)=>[item.id,OwnedItem.from(item, item.metadata.created)]));
+  const collection=new Map(items.map((item)=>[String(item.id),OwnedItem.from(item, item.metadata.created)]));
 
   replaceSources.forEach((source)=>{
    collection.forEach((item)=>{
@@ -57,9 +82,8 @@ export const ItemStore={
    });
   });
 
-  incomingItems.forEach((incomingItem)=>{
-   const incoming=OwnedItem.from(incomingItem,timestamp);
-   const existing=collection.get(incoming.id);
+  aggregateIncomingItems(incomingItems,timestamp).forEach((incoming)=>{
+   const existing=collection.get(String(incoming.id));
    const item=existing ?? incoming;
    const sources=incoming.metadata.sources;
 
@@ -72,7 +96,7 @@ export const ItemStore={
     });
    }else{
     sources.forEach((source)=>item.updateMetadata({source,timestamp}));
-    collection.set(item.id,item);
+    collection.set(String(item.id),item);
    }
   });
 

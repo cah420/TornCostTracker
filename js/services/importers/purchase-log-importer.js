@@ -29,6 +29,8 @@ const TITLE = {
   tradeMoneyOutgoing: /trade.*(?:money|cash).*(?:sent|outgoing|paid)|(?:sent|paid).*(?:money|cash).*trade/i,
   tradeItemsIncoming: /trade.*items?.*(?:received|incoming)|(?:received|incoming).*items?.*trade/i,
   tradeCompleted: /trade.*(?:completed|complete)/i,
+  bazaarInternalMovement: /bazaar.*(?:add|remove|edit|open\s*\/?\s*close|sell)|(?:add|remove|edit|open\s*\/?\s*close|sell).*bazaar/i,
+  tradeLifecycle: /trade.*(?:initiate|expire|items?.*add.*other user)/i,
 };
 
 function number(value){
@@ -49,6 +51,10 @@ function logCollection(response){
 
 function logId(log){
   return log?.id ?? log?.log_id ?? null;
+}
+
+function logTypeFor(log){
+  return log?.details?.id ?? log?.log ?? log?.log_id ?? "unknown";
 }
 
 function timestampFor(log){
@@ -123,6 +129,7 @@ function normalizePurchase(log, sourceType){
   if (id === null || timestamp === null) return null;
   const itemLines = itemsFor(data);
   if (!itemLines.length) return null;
+  const costStatus = itemLines.every((line) => line.knownUnitCost !== null) ? "known" : "unresolved";
   return new Acquisition({
     id: `log:${id}`,
     timestamp,
@@ -131,6 +138,9 @@ function normalizePurchase(log, sourceType){
     counterpartyId: counterpartyFor(data),
     totalCashCost: totalCostFor(data, itemLines),
     itemLines,
+    acquisitionKind: "paid",
+    costStatus,
+    acquisitionMethod: sourceType,
   }).toJSON();
 }
 
@@ -172,8 +182,45 @@ function normalizeTrades(logs){
       totalCashCost: trade.money,
       itemLines,
       allocationStatus: singleLine ? "resolved" : "unresolved",
+      acquisitionKind: singleLine ? "paid" : "unresolved",
+      costStatus: singleLine ? "known" : "unresolved",
+      acquisitionMethod: "trade",
     }).toJSON()];
   });
+}
+
+function isExplicitInternalMovement(title){
+  return TITLE.bazaarInternalMovement.test(title) || TITLE.tradeLifecycle.test(title);
+}
+
+function isHandledTitle(title){
+  return TITLE.bazaarPurchase.test(title) ||
+    TITLE.itemMarketPurchase.test(title) ||
+    TITLE.cityShopPurchase.test(title) ||
+    TITLE.abroadShopPurchase.test(title) ||
+    TITLE.tradeMoneyOutgoing.test(title) ||
+    TITLE.tradeItemsIncoming.test(title) ||
+    TITLE.tradeCompleted.test(title) ||
+    isExplicitInternalMovement(title);
+}
+
+function unsupportedIncomingSignatures(logs){
+  const signatures = new Map();
+  logs.forEach((log) => {
+    const title = titleFor(log);
+    if (isHandledTitle(title)) return;
+    const fields = Object.keys(dataFor(log)).sort();
+    const appearsToContainItems = fields.some((field) =>
+      ["item", "item_id", "itemID", "items", "items_gained"].includes(field),
+    );
+    if (!appearsToContainItems) return;
+    const logType = String(logTypeFor(log));
+    const key = `${logType}\u0000${title}\u0000${fields.join(",")}`;
+    const existing = signatures.get(key) ?? { logType, title, fieldNames: fields, occurrences: 0 };
+    existing.occurrences += 1;
+    signatures.set(key, existing);
+  });
+  return [...signatures.values()].sort((left, right) => right.occurrences - left.occurrences);
 }
 
 function normalizedRecords(logs){
@@ -187,6 +234,12 @@ function normalizedRecords(logs){
   });
   records.push(...normalizeTrades(logs));
   return records.filter(Boolean);
+}
+
+// Exported for deterministic importer tests. Torn-specific shapes remain
+// confined to this module.
+export function normalizeAcquisitionLogs(logs = []){
+  return normalizedRecords(logs).filter(Boolean);
 }
 
 function pageCheckpoint(logs){
@@ -269,31 +322,15 @@ export const PurchaseLogImporter = {
       fromTimestamp === null || (timestampFor(log) !== null && timestampFor(log) >= fromTimestamp),
     );
     const deduped = new Map(normalizedRecords(rawLogs).map((record) => [record.id, record]));
-    const titles = rawLogs.reduce((counts, log) => {
-      const title = titleFor(log);
-      if (title) counts[title] = (counts[title] ?? 0) + 1;
-      return counts;
-    }, {});
-    const titleSummary = Object.fromEntries(
-      Object.entries(titles)
-        .sort(([, left], [, right]) => right - left)
-        .slice(0, 30),
-    );
-    const logSignatures = Object.fromEntries(
-      Object.entries(rawLogs.reduce((counts, log) => {
-        const signature = `${log?.details?.id ?? "unknown"}: ${titleFor(log)} [data: ${Object.keys(object(log?.data)).join(",") || "none"}; params: ${Object.keys(object(log?.params)).join(",") || "none"}]`;
-        counts[signature] = (counts[signature] ?? 0) + 1;
-        return counts;
-      }, {})).slice(0, 30),
-    );
+    const unsupportedSignatures = unsupportedIncomingSignatures(rawLogs);
     console.info("Purchase log import summary", {
       fetchedLogs: rawLogs.length,
       normalizedAcquisitions: deduped.size,
-      titleCount: Object.keys(titles).length,
-      titles: titleSummary,
-      logSignatures,
       pages: pageTrace,
     });
+    if (unsupportedSignatures.length) {
+      console.info("Unsupported incoming acquisition signatures", unsupportedSignatures);
+    }
     return {
       records: [...deduped.values()],
       checkpoint: pageCheckpoint(rawLogs),

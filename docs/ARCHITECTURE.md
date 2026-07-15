@@ -6,6 +6,8 @@
 
 Each `OwnedItem` is the canonical current-holdings record. Its `totalQuantity` is the sum of Inventory, Bazaar, Item Market, and Display Case quantities. Importers alone understand source-specific Torn API response fields.
 
+Importers return one normalized record per Torn source row. ItemStore aggregates duplicate base item IDs within the current source batch, then replaces only that source's previous quantity. It never adds the fresh aggregate to cached source data, so repeated synchronization is idempotent. Unique equipment UID and stat payloads are intentionally deferred; current ownership remains one OwnedItem per base Torn item ID.
+
 ## Purchase history
 
 `Torn user logs -> PurchaseLogImporter -> PurchaseSyncService -> PurchaseStore -> acquisition views`
@@ -19,6 +21,10 @@ Each `OwnedItem` is the canonical current-holdings record. Its `totalQuantity` i
 CostBasisService is a pure, non-persistent analysis service. It takes matching normalized item lines from supported acquisition sources and consumes them newest first until current `totalQuantity` is covered. A lot may be partially used. Equal timestamps use descending acquisition ID as a deterministic secondary sort, so estimates do not change between runs.
 
 Quantity coverage (`matched/current`) and priced coverage (`reliably priced/current`) remain separate. Unresolved lines, such as a multi-item trade with no safe allocation, can cover quantity but contribute no known cost. This is an estimate: acquisition history may omit gifts, rewards, crimes, sales, transfers, item use, and history outside the imported range.
+
+Acquisition cost semantics are explicit: `paid/known` lots contribute cash cost; `free/zero` lots are valid $0 cash lots; `nonCash` lots retain quantity without an invented dollar amount; and `unresolved` lots retain quantity without a safe cash allocation. Internal movements between the player's locations never become acquisitions. Future economic or inherited-cost analysis can build on these canonical classifications without changing known cash cost basis.
+
+Current importer support is intentionally verified-only: Bazaar, Item Market, Abroad, existing City Shop matching, and supported paid trades are normalized. Bazaar add/remove/edit/open-close/sell and trade initiate/expire/item-add lifecycle entries are explicitly excluded. Gift, reward, conversion, Item Market return, Display Case movement, and additional City Shop variants remain pending exact Torn log payload and direction confirmation.
 
 ## DataGrid selection
 

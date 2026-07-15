@@ -13,12 +13,13 @@ const CATEGORIES = [
 ];
 const PAGE_SIZE = 100;
 
-function normalizeInventoryItem(item, category, timestamp){
+export function normalizeInventoryItem(item, category, timestamp){
   return new OwnedItem({
     id: item.id,
     name: item.name,
     category,
-    locations: { inventory: item.amount },
+    // Unique equipment may be returned once per UID without an amount.
+    locations: { inventory: item.amount ?? item.quantity ?? item.qty ?? 1 },
     metadata: {
       created: timestamp,
       lastUpdated: timestamp,

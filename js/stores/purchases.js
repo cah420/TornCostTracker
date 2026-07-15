@@ -42,6 +42,11 @@ function persistStates(){
 function recordsFor(playerId){
   const key = playerKey(playerId);
   if (!Array.isArray(recordsByPlayer[key])) recordsByPlayer[key] = [];
+  const legacyRecords = recordsByPlayer[key];
+  if (legacyRecords.some((record) => !record?.acquisitionKind || !record?.costStatus || !record?.acquisitionMethod)) {
+    recordsByPlayer[key] = legacyRecords.map((record) => Acquisition.from(record).toJSON());
+    persistRecords();
+  }
   return recordsByPlayer[key];
 }
 

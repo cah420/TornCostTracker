@@ -68,3 +68,15 @@ Item Store added.
 ## v0.7.2-alpha2 - Collapsible Sidebar Navigation
 - Added a persisted, accessible sidebar collapse control with icon-only navigation mode.
 - Added smooth layout transitions and reduced-motion support.
+
+## Sprint 8.2 - Acquisition Source Expansion
+- Added canonical paid, free, non-cash, and unresolved acquisition cost classifications.
+- Updated known cash cost basis to include valid zero-cost lots without treating non-cash or unresolved lots as free.
+- Added explicit Bazaar/trade lifecycle exclusions and a bounded unsupported incoming-signature diagnostic.
+
+## v0.7.3-alpha1 - Expanded Acquisition Coverage & Quantity Accuracy
+- Added explicit paid, free/zero-cash, non-cash, and unresolved acquisition cost classifications.
+- Preserved verified paid acquisition sources while adding safe unsupported incoming-item diagnostics for future source discovery.
+- Fixed duplicate same-ID equipment rows being overwritten instead of summed within a source sync.
+- Added one-unit fallback for uniquely-instanced source rows without an explicit quantity.
+- Preserved source replacement, cached unavailable-source behavior, and base-item-only Items rows.

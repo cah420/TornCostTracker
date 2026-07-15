@@ -101,3 +101,22 @@
 - Enable reduced motion in the operating system/browser: confirm sidebar transitions are effectively disabled.
 - Check Items, Item Details, Purchases, Readme, Settings, status bar, and footer in both sidebar states for overlap or page-wide horizontal overflow.
 - Run `node --experimental-default-type=module js/sidebar-controller.test.mjs` to validate state toggle, ARIA updates, and persistence.
+
+## Sprint 8.2 - Acquisition Source Expansion
+
+- Verify paid lots contribute known cash cost, while confirmed zero-cost lots contribute quantity and $0 to the average/low price.
+- Verify non-cash and unresolved lots contribute matched quantity but not priced quantity or known cash cost.
+- Verify Bazaar add/remove/edit/open-close/sell and trade initiate/expire/item-add lifecycle logs do not create acquisitions.
+- During a purchase sync, inspect only the bounded `Unsupported incoming acquisition signatures` console diagnostic. It must list no values beyond log type, title, field names, and occurrence count.
+- Confirm legacy locally cached acquisition records remain readable and receive the new cost-classification fields after access.
+- Run `node --experimental-default-type=module js/services/analysis/cost-basis-service.test.mjs` for paid, zero-cost, non-cash, unresolved, legacy, and lifecycle-exclusion coverage.
+
+## v0.7.2-alpha3 - Unique Equipment Quantity Aggregation
+
+- Refresh with two or more uniquely-instanced weapons/armor sharing one base item ID: confirm the Items row and Item Details source quantity equal the number of instances.
+- Confirm a stackable row with an explicit amount remains unchanged, and an instance row without an amount counts as one.
+- Repeat the same successful item refresh: quantities must remain unchanged rather than accumulating.
+- Remove an item from a successful source response: confirm that source quantity clears while quantities in other locations remain.
+- Sync while Bazaar is closed/unavailable: confirm its cached quantity remains unchanged.
+- Confirm corrected total quantity appears in snapshots and changes current-quantity/coverage values in Item Details > Purchases.
+- Run `node --experimental-default-type=module js/stores/items-aggregation.test.mjs` for all-location duplicate aggregation, replacement, idempotency, cache preservation, cost-basis, and snapshot coverage.

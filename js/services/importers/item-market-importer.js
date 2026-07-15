@@ -7,7 +7,7 @@ import { OwnedItem } from "../../models.js";
 
 const PAGE_SIZE = 100;
 
-function normalizeItemMarketListing(listing, timestamp){
+export function normalizeItemMarketListing(listing, timestamp){
   const item = listing.item ?? listing;
   const id = item.id ?? listing.item_id ?? listing.id ?? listing.ID;
 
@@ -17,7 +17,7 @@ function normalizeItemMarketListing(listing, timestamp){
     category: item.category ?? item.type ?? listing.category ?? listing.type ?? "Unknown",
     locations: {
       itemMarket: {
-        quantity: listing.quantity ?? listing.amount ?? listing.qty ?? item.quantity,
+        quantity: listing.quantity ?? listing.amount ?? listing.qty ?? item.quantity ?? item.amount ?? item.qty ?? 1,
         updated: timestamp,
       },
     },

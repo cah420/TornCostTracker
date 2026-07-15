@@ -5,7 +5,7 @@
 import { API } from "../../api.js";
 import { OwnedItem } from "../../models.js";
 
-function normalizeDisplayCaseItem(item, timestamp){
+export function normalizeDisplayCaseItem(item, timestamp){
   const id = item.id ?? item.ID ?? item.item_id;
 
   return new OwnedItem({
@@ -13,7 +13,7 @@ function normalizeDisplayCaseItem(item, timestamp){
     name: item.name ?? item.item_name ?? `Item #${id}`,
     category: item.category ?? item.type ?? "Unknown",
     locations: {
-      displayCase: { quantity: item.quantity ?? item.amount ?? item.qty, updated: timestamp },
+      displayCase: { quantity: item.quantity ?? item.amount ?? item.qty ?? 1, updated: timestamp },
     },
     metadata: {
       created: timestamp,

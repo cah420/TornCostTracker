@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { CostBasisService } from "./cost-basis-service.js";
-import { OwnedItem } from "../../models.js";
+import { Acquisition, OwnedItem } from "../../models.js";
+import { normalizeAcquisitionLogs } from "../importers/purchase-log-importer.js";
 
 function item(quantity, locations = {}){
   return { id: 1079, totalQuantity: quantity, locations };
@@ -79,5 +80,55 @@ assert.equal(result.matchedLots[0].acquisitionId, "b");
 result = calculate(0, [acquisition({ id: "a", timestamp: 10, quantity: 2, unitCost: 10 })]);
 assert.equal(result.matchedQuantity, 0);
 assert.match(result.warnings.join(" "), /Current quantity is zero/);
+
+// Confirmed free acquisitions are valid zero-cost lots and reduce the cash average.
+const freeGift = new Acquisition({
+  id: "gift", timestamp: 30, sourceType: "playerGift", acquisitionMethod: "playerGift",
+  acquisitionKind: "free", costStatus: "zero",
+  itemLines: [{ itemId: 1079, quantity: 5 }],
+}).toJSON();
+const paidLot = acquisition({ id: "paid", timestamp: 20, quantity: 5, unitCost: 100 });
+result = calculate(10, [paidLot, freeGift]);
+assert.equal(result.paidQuantity, 5);
+assert.equal(result.zeroCostQuantity, 5);
+assert.equal(result.pricedQuantity, 10);
+assert.equal(result.totalKnownCost, 500);
+assert.equal(result.weightedAverageUnitCost, 50);
+assert.equal(result.lowestKnownUnitCost, 0);
+assert.equal(result.matchedLots[0].acquisitionMethod, "playerGift");
+
+// A clearly acquired non-cash lot remains distinct from free/zero cash cost.
+const nonCash = new Acquisition({
+  id: "conversion", timestamp: 40, sourceType: "itemConversion", acquisitionMethod: "itemConversion",
+  acquisitionKind: "nonCash", costStatus: "nonCash",
+  itemLines: [{ itemId: 1079, quantity: 4 }],
+}).toJSON();
+result = calculate(4, [nonCash]);
+assert.equal(result.nonCashQuantity, 4);
+assert.equal(result.pricedQuantity, 0);
+assert.equal(result.totalKnownCost, null);
+assert.match(result.warnings.join(" "), /non-cash acquisitions/);
+
+// Legacy cached records receive paid/known defaults without losing provenance.
+const migratedLegacy = Acquisition.from({
+  id: "legacy", timestamp: 50, sourceType: "bazaar", itemLines: [{ itemId: 1079, quantity: 1, knownUnitCost: 10 }],
+}).toJSON();
+assert.equal(migratedLegacy.acquisitionKind, "paid");
+assert.equal(migratedLegacy.costStatus, "known");
+assert.equal(migratedLegacy.acquisitionMethod, "bazaar");
+
+// Free records may retain multiple item lines, while internal movements never normalize.
+const multiFree = new Acquisition({
+  id: "multi-free", timestamp: 60, sourceType: "eventReward", acquisitionMethod: "eventReward",
+  acquisitionKind: "free", costStatus: "zero",
+  itemLines: [{ itemId: 1079, quantity: 2 }, { itemId: 1, quantity: 3 }],
+}).toJSON();
+assert.equal(multiFree.itemLines.every((line) => line.knownUnitCost === 0), true);
+const lifecycleLogs = [
+  { id: "bazaar-add", timestamp: 70, details: { title: "Bazaar add", id: 1200 }, data: { items: [{ item_id: 1079, quantity: 1 }] } },
+  { id: "market-return", timestamp: 71, details: { title: "Item market remove", id: 1300 }, data: { items: [{ item_id: 1079, quantity: 1 }] } },
+  { id: "trade-expire", timestamp: 72, details: { title: "Trade expire", id: 4420 }, data: { items: [{ item_id: 1079, quantity: 1 }] } },
+];
+assert.equal(normalizeAcquisitionLogs(lifecycleLogs).length, 0);
 
 console.log("CostBasisService deterministic tests passed.");

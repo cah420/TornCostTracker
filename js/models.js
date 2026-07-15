@@ -132,8 +132,33 @@ export const ACQUISITION_SOURCE_TYPES = Object.freeze([
   "cityShop",
   "abroadShop",
   "trade",
+  "playerGift",
+  "factionGift",
+  "crimeReward",
+  "eventReward",
+  "companyReward",
+  "itemConversion",
+  "other",
   "unknown",
 ]);
+
+export const ACQUISITION_KINDS = Object.freeze(["paid", "free", "nonCash", "unresolved"]);
+export const ACQUISITION_COST_STATUSES = Object.freeze(["known", "zero", "nonCash", "unresolved"]);
+
+function acquisitionKindFor(value, allocationStatus){
+  if (ACQUISITION_KINDS.includes(value)) return value;
+  return allocationStatus === "unresolved" ? "unresolved" : "paid";
+}
+
+function costStatusFor(value, acquisitionKind){
+  if (ACQUISITION_COST_STATUSES.includes(value)) return value;
+  return {
+    paid: "known",
+    free: "zero",
+    nonCash: "nonCash",
+    unresolved: "unresolved",
+  }[acquisitionKind];
+}
 
 /**
  * A Torn-neutral, canonical record of items acquired in one transaction.
@@ -150,6 +175,9 @@ export class Acquisition {
     totalCashCost = null,
     itemLines = [],
     allocationStatus = "resolved",
+    acquisitionKind = null,
+    costStatus = null,
+    acquisitionMethod = null,
   } = {}) {
     if (id === null || id === undefined || id === "") {
       throw new Error("Acquisition requires a stable id.");
@@ -164,19 +192,26 @@ export class Acquisition {
     this.sourceLocation = typeof sourceLocation === "string" && sourceLocation.trim() ? sourceLocation.trim() : null;
     this.counterpartyId = counterpartyId === null || counterpartyId === undefined ? null : Number(counterpartyId);
     this.tradeId = tradeId === null || tradeId === undefined || tradeId === "" ? null : String(tradeId);
-    this.totalCashCost = optionalNumber(totalCashCost);
+    this.acquisitionKind = acquisitionKindFor(acquisitionKind, allocationStatus);
+    this.costStatus = costStatusFor(costStatus, this.acquisitionKind);
+    this.acquisitionMethod = ACQUISITION_SOURCE_TYPES.includes(acquisitionMethod)
+      ? acquisitionMethod
+      : this.sourceType;
+    this.totalCashCost = this.costStatus === "zero" ? 0 : optionalNumber(totalCashCost);
     this.itemLines = itemLines
       .map((line) => ({
         itemId: line?.itemId === null || line?.itemId === undefined ? null : Number(line.itemId),
         quantity: quantity(line?.quantity),
-        knownUnitCost: optionalNumber(line?.knownUnitCost),
-        knownLineTotal: optionalNumber(line?.knownLineTotal),
+        knownUnitCost: this.costStatus === "zero" ? 0 : optionalNumber(line?.knownUnitCost),
+        knownLineTotal: this.costStatus === "zero" ? 0 : optionalNumber(line?.knownLineTotal),
       }))
       .filter((line) => line.itemId !== null && line.quantity > 0);
     if (!this.itemLines.length) {
       throw new Error("Acquisition requires at least one item line.");
     }
-    this.allocationStatus = allocationStatus === "unresolved" ? "unresolved" : "resolved";
+    this.allocationStatus = this.acquisitionKind === "unresolved" || allocationStatus === "unresolved"
+      ? "unresolved"
+      : "resolved";
   }
 
   static from(record){
@@ -194,6 +229,9 @@ export class Acquisition {
       totalCashCost: this.totalCashCost,
       itemLines: this.itemLines,
       allocationStatus: this.allocationStatus,
+      acquisitionKind: this.acquisitionKind,
+      costStatus: this.costStatus,
+      acquisitionMethod: this.acquisitionMethod,
     };
   }
 }
