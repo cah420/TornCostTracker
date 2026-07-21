@@ -1,5 +1,15 @@
 # Manual verification
 
+## Sprint 9 - Inventory Conversion Engine & Market Valuation
+
+- Run `node --experimental-default-type=module js/services/conversion-service.test.mjs` to validate FIFO ordering, partial consumption, unresolved handling, cash recovery/gain, effective-value allocation, immutable input snapshots, and verified conversion mappings.
+- Select an owned item after the Torn item catalog has loaded: confirm Current Market Value, Vendor Sell Value, Effective Value, Estimated Inventory Value, and Last Market Update are informational fields and do not alter its known cash cost basis.
+- Import logs containing the verified `Item use wallet` and `Item use empty blood bag` events. Open Conversion History: confirm newest-first rows show input, cash, outputs, original basis, historical value received, and net realized gain/loss.
+- For a multi-output test conversion, confirm the stored allocated output bases plus cash basis recovered equal original known basis, with any cent remainder assigned to the highest effective-value output.
+- Open two same-item input lots bought at different prices, then process two conversions: confirm the first record uses the older price and the second uses the next FIFO lot price. Confirm Net Gain/Loss is green for a positive market-snapshot value difference and red for a negative one; it is informational and separate from cash-only realized gain/loss.
+- Interrupt a conversion processing attempt through a missing required multi-output value: confirm no lot quantities or conversion history rows are partially committed; restore the required data and retry.
+- Import a conversion whose input item has no tracked acquisition lot: confirm purchase synchronization completes, Conversion History shows an unresolved row, and no input/output cost lots are created or consumed.
+
 ## v0.7.3-alpha2 - Data Acquisition Performance
 
 - Run `node --experimental-default-type=module js/api-queue.test.mjs`: confirm 1,200 ms request-start spacing, stable queue order, no concurrent work, no idle-queue burst, recoverable failure handling, and rate-limit backoff.

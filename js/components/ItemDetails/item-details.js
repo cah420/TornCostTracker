@@ -7,6 +7,8 @@ import { CostBasisService } from "../../services/analysis/cost-basis-service.js"
 import { PlayerStore } from "../../stores/player.js";
 import { PurchaseStore } from "../../stores/purchases.js";
 import { ItemStore } from "../../stores/items.js";
+import { MarketValueService } from "../../services/market-value-service.js";
+import { CostLotStore } from "../../stores/inventory-ledger.js";
 
 const LOCATION_LABELS = {
   inventory: "Inventory",
@@ -50,11 +52,13 @@ export class ItemDetails {
     this.onItemsSynced = () => this.refreshSelectedItem();
     this.onPurchaseChanged = () => this.render();
     this.onItemCacheCleared = () => { this.item = null; this.render(); };
+    this.onMarketValuesUpdated = () => this.render();
     Events.on("itemSelected", this.onItemSelected);
     Events.on("itemsSynced", this.onItemsSynced);
     Events.on("purchaseSyncCompleted", this.onPurchaseChanged);
     Events.on("purchaseCacheCleared", this.onPurchaseChanged);
     Events.on("itemCacheCleared", this.onItemCacheCleared);
+    Events.on("marketValuesUpdated", this.onMarketValuesUpdated);
     this.render();
   }
 
@@ -64,11 +68,13 @@ export class ItemDetails {
     Events.off("purchaseSyncCompleted", this.onPurchaseChanged);
     Events.off("purchaseCacheCleared", this.onPurchaseChanged);
     Events.off("itemCacheCleared", this.onItemCacheCleared);
+    Events.off("marketValuesUpdated", this.onMarketValuesUpdated);
   }
 
   setItem(item){
     this.item = item;
     this.render();
+    void MarketValueService.ensureLoaded().catch(() => { /* Values remain unavailable without affecting item details. */ });
   }
 
   refreshSelectedItem(){
@@ -123,12 +129,18 @@ export class ItemDetails {
     name.textContent = this.item.name;
     title.append(createItemImage(this.item, { size: "large", className: "tct-item-image--detail" }), name);
     const details = document.createElement("dl");
+    const marketValue = MarketValueService.lookup(this.item.id);
     const rows = [
       ["Category", this.item.category || "Unknown"],
       ["Total Quantity", this.item.totalQuantity],
       ...Object.entries(LOCATION_LABELS).map(([key, label]) => [`${label} Quantity`, this.item.locations[key]?.quantity ?? 0]),
       ["Sources", this.item.metadata.sources.join(", ") || "None"],
       ["Last Updated", formatDate(this.item.metadata.lastUpdated)],
+      ["Current Market Value", formatMoney(marketValue?.marketPrice)],
+      ["Vendor Sell Value", formatMoney(marketValue?.vendorSellPrice)],
+      ["Effective Value", formatMoney(marketValue?.effectiveValue)],
+      ["Estimated Inventory Value", marketValue?.marketPrice !== null && marketValue?.marketPrice !== undefined ? formatMoney(marketValue.marketPrice * this.item.totalQuantity) : "Unknown"],
+      ["Last Market Update", formatDate(MarketValueService.updatedAt())],
     ];
     rows.forEach(([label, value]) => {
       const term = document.createElement("dt");
@@ -146,7 +158,10 @@ export class ItemDetails {
     const acquisitions = playerId === null || playerId === undefined
       ? []
       : PurchaseStore.byItem(playerId, this.item.id);
-    const result = CostBasisService.calculate(this.item, acquisitions);
+    const lots = playerId === null || playerId === undefined ? [] : CostLotStore.all(playerId);
+    const result = lots.length
+      ? CostBasisService.calculateFromLots(this.item, lots)
+      : CostBasisService.calculate(this.item, acquisitions);
     const note = document.createElement("p");
     note.className = "tct-item-details__note";
     note.textContent = "Estimated from newest known acquisitions first to represent the lots making up current holdings.";

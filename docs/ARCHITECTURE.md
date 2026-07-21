@@ -32,7 +32,15 @@ Quantity coverage (`matched/current`) and priced coverage (`reliably priced/curr
 
 Acquisition cost semantics are explicit: `paid/known` lots contribute cash cost; `free/zero` lots are valid $0 cash lots; `nonCash` lots retain quantity without an invented dollar amount; and `unresolved` lots retain quantity without a safe cash allocation. Internal movements between the player's locations never become acquisitions. Future economic or inherited-cost analysis can build on these canonical classifications without changing known cash cost basis.
 
-Current importer support is intentionally verified-only: Bazaar, Item Market, Abroad, existing City Shop matching, and supported paid trades are normalized. Bazaar add/remove/edit/open-close/sell and trade initiate/expire/item-add lifecycle entries are explicitly excluded. Gift, reward, conversion, Item Market return, Display Case movement, and additional City Shop variants remain pending exact Torn log payload and direction confirmation.
+Current importer support is intentionally verified-only: Bazaar, Item Market, Abroad, existing City Shop matching, supported paid trades, confirmed zero-cost gifts/finds, and the verified wallet/blood-bag conversion events are normalized. Bazaar add/remove/edit/open-close/sell and trade initiate/expire/item-add lifecycle entries are explicitly excluded. Additional gifts, rewards, conversion mechanics, Item Market return, Display Case movement, and City Shop variants remain pending exact Torn log payload and direction confirmation.
+
+## Inventory conversion ledger and valuation
+
+`Purchase acquisitions + normalized conversion events -> CostLotStore -> CostingStrategy -> ConversionService -> ConversionStore`
+
+Cost lots are account-scoped remaining quantities with a cost-status boundary (`known`, `zero`, `nonCash`, or `unresolved`). `FifoCostingStrategy` is the only active strategy: it sorts eligible lots by ascending timestamp then stable lot ID, supports partial consumption, and returns a new lot snapshot rather than mutating input data. ConversionService is strategy-agnostic; it validates complete input consumption, then atomically commits resulting lots and the conversion record through the shared ledger store.
+
+MarketValueService reuses `API.getTornItems()` and stores three distinct values per item: current market price, vendor sell price, and effective value (the greater recoverable value). Market values are informational outside conversions. A multi-output conversion snapshots its effective values and allocation percentages permanently; later refreshes cannot change historical output basis. Cash recovers at most the known input basis; remaining basis is allocated in cents, and any rounding remainder is assigned to the highest-value output. Unknown/unresolved input basis stays unresolved rather than becoming zero.
 
 ## DataGrid selection
 

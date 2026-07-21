@@ -8,6 +8,7 @@ import { PurchaseStore } from "../stores/purchases.js";
 import { ItemStore } from "../stores/items.js";
 import { ItemSyncService } from "../services/item-sync-service.js";
 import { ItemCatalogStore } from "../stores/item-catalog.js";
+import { ConversionStore } from "../stores/inventory-ledger.js";
 
 export default {
   route: "settings",
@@ -35,7 +36,7 @@ export default {
       <div id="settingsMessage" class="settings-message" aria-live="polite"></div>
       <section class="settings-purchase-cache">
         <h3>Purchase cache</h3>
-        <p>Clear locally saved purchase history and purchase-sync checkpoints for every cached account on this device.</p>
+        <p>Clear locally saved purchase history, conversion ledger/history, and purchase-sync checkpoints for every cached account on this device.</p>
         <button id="clearPurchaseCacheBtn" class="settings-danger-button" type="button">Clear Purchase Cache</button>
       </section>
       <section class="settings-purchase-cache">
@@ -93,7 +94,7 @@ export default {
       dialog.innerHTML = `
         <form method="dialog" class="settings-confirm-dialog__content">
           <h3>Clear purchase cache?</h3>
-          <p>This clears all locally cached purchase history and sync checkpoints. This action cannot be undone.</p>
+          <p>This clears all locally cached purchase history, conversion ledger/history, and sync checkpoints. This action cannot be undone.</p>
           <label class="settings-confirm-dialog__checkbox">
             <input id="confirmPurchaseCacheClear" type="checkbox">
             I understand that this cannot be undone.
@@ -118,6 +119,7 @@ export default {
         () => {
           if (dialog.returnValue === "confirm" && acknowledgement.checked) {
             PurchaseStore.clearAll();
+            ConversionStore.clearAll();
             Events.emit("purchaseCacheCleared");
             message.className = "settings-message settings-message--success";
             message.textContent = "Purchase cache cleared.";

@@ -80,6 +80,24 @@ function costStatusFor(record){
  * Pure current-holdings cost-basis calculator.
  */
 export const CostBasisService = {
+  calculateFromLots(ownedItem, lots = []){
+    // Lots are the accounting source of truth once the ledger has processed
+    // history. Reuse the established display calculation without making this
+    // service responsible for consuming or mutating those lots.
+    const records = lots
+      .filter((lot) => positiveQuantity(lot?.remainingQuantity) > 0)
+      .map((lot) => ({
+        id: `lot:${lot.id}`,
+        timestamp: Number(lot.timestamp),
+        sourceType: "other",
+        allocationStatus: lot.costStatus === "unresolved" ? "unresolved" : "resolved",
+        acquisitionKind: lot.costStatus === "zero" ? "free" : lot.costStatus === "nonCash" ? "nonCash" : lot.costStatus === "unresolved" ? "unresolved" : "paid",
+        costStatus: lot.costStatus,
+        acquisitionMethod: "inventoryLot",
+        itemLines: [{ itemId: lot.itemId, quantity: lot.remainingQuantity, knownUnitCost: lot.unitCost }],
+      }));
+    return this.calculate(ownedItem, records);
+  },
   calculate(ownedItem, acquisitions = []){
     if (!ownedItem || ownedItem.id === null || ownedItem.id === undefined) {
       throw new Error("Cost basis requires an OwnedItem.");

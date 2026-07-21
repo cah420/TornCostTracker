@@ -3,6 +3,7 @@
  */
 import { API } from "../api.js";
 import { ItemCatalogStore } from "../stores/item-catalog.js";
+import { MarketValueService } from "./market-value-service.js";
 
 let pending = null;
 
@@ -15,7 +16,9 @@ export const ItemCatalogService = {
     if (!pending) {
       pending = API.getTornItems()
         .then((response) => {
-          ItemCatalogStore.replace(response?.items ?? []);
+          const items = response?.items ?? [];
+          ItemCatalogStore.replace(items);
+          MarketValueService.ingest(items);
           return ItemCatalogStore.all();
         })
         .finally(() => { pending = null; });

@@ -6,6 +6,8 @@ import { Events } from "../events.js";
 import { PlayerStore } from "../stores/player.js";
 import { PurchaseStore } from "../stores/purchases.js";
 import { PurchaseLogImporter } from "./importers/purchase-log-importer.js";
+import { ConversionStore } from "../stores/inventory-ledger.js";
+import { ConversionService } from "./conversion-service.js";
 
 const MIN_INITIAL_DAYS = 1;
 const MAX_INITIAL_DAYS = 180;
@@ -51,6 +53,8 @@ async function run({ playerId, mode, fromTimestamp, checkpoint }){
       progress: (progress) => publish("purchaseSyncProgress", { playerId, mode, stage: "purchases", status: "loading", ...progress }),
     });
     PurchaseStore.merge(playerId, result.records);
+    ConversionStore.mergeEvents(playerId, result.conversions ?? []);
+    await ConversionService.processPending(playerId);
     const importedAt = Date.now();
     const newestCheckpoint = result.checkpoint.timestamp === null
       ? {}
@@ -116,6 +120,7 @@ export const PurchaseSyncService = {
   resetCurrent(){
     const playerId = currentPlayerId();
     PurchaseStore.reset(playerId);
+    ConversionStore.clear(playerId);
     return playerId;
   },
 };

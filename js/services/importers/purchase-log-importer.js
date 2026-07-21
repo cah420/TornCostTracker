@@ -34,6 +34,24 @@ const TITLE = {
   bazaarInternalMovement: /bazaar.*(?:add|remove|edit|open\s*\/?\s*close|sell)|(?:add|remove|edit|open\s*\/?\s*close|sell).*bazaar/i,
   tradeLifecycle: /trade.*(?:initiate|expire|items?.*add.*other user)/i,
 };
+const CONVERSION_MAPPINGS = [
+  {
+    id: "item-use-wallet",
+    matches: (log, title) => logTypeFor(log) === 2405 && /^item use wallet$/i.test(title),
+    inputItems: (data) => itemLinesFromValues([data.item]),
+    outputItems: (data) => itemLinesFromValues(data.items),
+    cashReceived: (data) => number(data.money) ?? 0,
+    allocationMethod: "effectiveValue",
+  },
+  {
+    id: "item-use-empty-blood-bag",
+    matches: (log, title) => logTypeFor(log) === 2340 && /^item use empty blood bag$/i.test(title),
+    inputItems: (data) => itemLinesFromValues([data.item]),
+    outputItems: (data) => itemLinesFromValues([data.blood_bag]),
+    cashReceived: () => 0,
+    allocationMethod: "transfer",
+  },
+];
 
 function number(value){
   const parsed = Number(value);
@@ -128,6 +146,11 @@ function itemsFor(data){
   }).filter((item) => item.itemId !== null && item.quantity > 0);
 }
 
+function itemLinesFromValues(values){
+  const list = Array.isArray(values) ? values : [values];
+  return itemsFor({ items: list }).map(({ itemId, quantity }) => ({ itemId, quantity }));
+}
+
 function totalCostFor(data, lines){
   const explicit = number(data?.total_cost ?? data?.cost_total ?? data?.total ?? data?.price_total ?? data?.cost);
   if (explicit !== null) return explicit;
@@ -174,6 +197,29 @@ function normalizeFreeAcquisition(log, sourceType){
     costStatus: "zero",
     acquisitionMethod: sourceType,
   }).toJSON();
+}
+
+function normalizeConversion(log){
+  const title = titleFor(log);
+  const mapping = CONVERSION_MAPPINGS.find((candidate) => candidate.matches(log, title));
+  if (!mapping) return null;
+  const data = dataFor(log);
+  const sourceLogId = logId(log);
+  const timestamp = timestampFor(log);
+  if (sourceLogId === null || timestamp === null) return null;
+  const inputItems = mapping.inputItems(data);
+  const outputItems = mapping.outputItems(data);
+  if (!inputItems.length) return null;
+  return {
+    id: `log:${sourceLogId}`,
+    sourceLogId: String(sourceLogId),
+    timestamp,
+    mappingId: mapping.id,
+    inputItems,
+    outputItems,
+    cashReceived: mapping.cashReceived(data),
+    allocationMethod: mapping.allocationMethod,
+  };
 }
 
 function normalizeTrades(logs){
@@ -225,7 +271,7 @@ function isExplicitInternalMovement(title){
   return TITLE.bazaarInternalMovement.test(title) || TITLE.tradeLifecycle.test(title);
 }
 
-function isHandledTitle(title){
+function isHandledTitle(title, log = null){
   return TITLE.bazaarPurchase.test(title) ||
     TITLE.itemMarketPurchase.test(title) ||
     TITLE.cityShopPurchase.test(title) ||
@@ -235,6 +281,7 @@ function isHandledTitle(title){
     TITLE.tradeMoneyOutgoing.test(title) ||
     TITLE.tradeItemsIncoming.test(title) ||
     TITLE.tradeCompleted.test(title) ||
+    CONVERSION_MAPPINGS.some((mapping) => mapping.matches(log ?? {}, title)) ||
     isExplicitInternalMovement(title);
 }
 
@@ -242,7 +289,7 @@ function unsupportedIncomingSignatures(logs){
   const signatures = new Map();
   logs.forEach((log) => {
     const title = titleFor(log);
-    if (isHandledTitle(title)) return;
+    if (isHandledTitle(title, log)) return;
     const fields = Object.keys(dataFor(log)).sort();
     const appearsToContainItems = fields.some((field) =>
       ["item", "item_id", "itemID", "items", "items_gained"].includes(field),
@@ -272,10 +319,18 @@ function normalizedRecords(logs){
   return records.filter(Boolean);
 }
 
+function normalizedConversions(logs){
+  return logs.map(normalizeConversion).filter(Boolean);
+}
+
 // Exported for deterministic importer tests. Torn-specific shapes remain
 // confined to this module.
 export function normalizeAcquisitionLogs(logs = []){
   return normalizedRecords(logRecords(logs)).filter(Boolean);
+}
+
+export function normalizeConversionLogs(logs = []){
+  return normalizedConversions(logRecords(logs));
 }
 
 function pageCheckpoint(logs){
@@ -358,10 +413,12 @@ export const PurchaseLogImporter = {
       fromTimestamp === null || (timestampFor(log) !== null && timestampFor(log) >= fromTimestamp),
     );
     const deduped = new Map(normalizedRecords(rawLogs).map((record) => [record.id, record]));
+    const conversions = new Map(normalizedConversions(rawLogs).map((event) => [event.id, event]));
     const unsupportedSignatures = unsupportedIncomingSignatures(rawLogs);
     console.info("Purchase log import summary", {
       fetchedLogs: rawLogs.length,
       normalizedAcquisitions: deduped.size,
+      normalizedConversions: conversions.size,
       pages: pageTrace,
     });
     if (unsupportedSignatures.length) {
@@ -369,6 +426,7 @@ export const PurchaseLogImporter = {
     }
     return {
       records: [...deduped.values()],
+      conversions: [...conversions.values()],
       checkpoint: pageCheckpoint(rawLogs),
       pages: pageNumber,
       logCount: rawLogs.length,

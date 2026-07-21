@@ -14,6 +14,7 @@
 - Persisted, accessible collapsible desktop sidebar navigation.
 - Known cash cost-basis classifications for paid, zero-cost, non-cash, and unresolved acquisition lots.
 - Base-item aggregation for uniquely-instanced equipment across all owned locations.
+- FIFO cost-lot ledger, verified inventory conversion history, and current-item market valuation.
 
 ## Synchronization enhancements
 - Shared ordered Torn API scheduling at a conservative 1,200 ms start interval, with bounded rate-limit backoff and persisted refresh summaries in ItemSyncService.

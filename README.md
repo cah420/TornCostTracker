@@ -21,6 +21,7 @@ This alpha is intended for player testing. Data is stored locally in your browse
 - Estimates current-holdings cost basis using newest known purchases first, including partial lots.
 - Separately reports quantity coverage and reliably priced coverage so unknown costs are not presented as zero.
 - Distinguishes known cash cost, confirmed zero-cash cost, non-cash, and unresolved acquisition lots.
+- Tracks verified inventory conversions through FIFO cost lots and shows current market, vendor-sell, and effective values separately.
 
 ## Getting started
 
@@ -56,6 +57,7 @@ Your API key is saved only in local browser storage on your device. Do not share
 - **Source verification:** Bazaar, Item Market, Abroad, existing City Shop matching, supported trades, and the exact `Faction give item receive` and `City item find` events are currently normalized. The verified faction gift and City Find are confirmed $0 cash acquisitions; faction loans, rewards, conversions, other gift types, and internal market/display movements are not imported until their directions and payloads are confirmed. City Shop title/payload variants remain deliberately narrow pending an independently captured sample.
 - **Local-only storage:** clearing browser/site data, using a different browser/profile, or selecting either clear-cache action removes the corresponding local data. This alpha has no account or cloud backup.
 - **Historical features:** snapshots are saved locally as a foundation for future reporting; portfolio charts, profit/loss, sale ingestion, and exact inventory accounting are not implemented yet.
+- **Conversions:** only verified `Item use wallet` and `Item use empty blood bag` log shapes are currently mapped. Historical conversions before this ledger was introduced require a purchase-cache reset and a fresh initial history sync to be reconstructed.
 
 ## Please report
 

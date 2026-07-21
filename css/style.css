@@ -520,6 +520,9 @@ main {
 .tct-purchases__message.success { color: var(--success); }
 .tct-purchases__message.error { color: var(--danger); }
 
+.tct-conversions__gain-loss--positive { color: var(--success); }
+.tct-conversions__gain-loss--negative { color: var(--danger); }
+
 .tct-readme {
   max-width: 980px;
   margin-right: auto;

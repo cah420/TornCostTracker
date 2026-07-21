@@ -1,5 +1,19 @@
 # Development Log
 
+## Sprint 9 - Inventory Conversion Engine & Market Valuation
+
+Inventory accounting now has a dedicated ledger boundary: `Acquisitions + Conversion Events -> Cost Lots -> Conversion History`. `CostLotStore` and `ConversionStore` share one account-scoped persisted ledger document, allowing a conversion's consumed lots, output lots, processed-event marker, and immutable history record to commit together. Existing acquisition records create lots only once; verified conversion events are retained independently so interrupted processing can safely retry without consuming a lot twice.
+
+`CostingStrategy` is an explicit pure contract. The active `fifo` strategy consumes the oldest remaining lots with a stable lot-ID tiebreaker, supports partial lots and confirmed zero-cost lots, and carries unresolved/non-cash quantities forward without inventing a cost. ConversionService requests consumption through that boundary and never selects or decrements FIFO lots itself.
+
+MarketValueService uses the existing shared `API.getTornItems()` request and stores `marketPrice`, `vendorSellPrice`, and `effectiveValue = max(marketPrice, vendorSellPrice)` separately. Multi-output conversions snapshot those effective values and allocate the remaining cents of basis proportionally; any rounding remainder goes to the highest-value output. Cash first recovers up to the input basis, never creates negative basis, and produces a realized gain only when cash exceeds known basis. One-output conversions transfer available basis without requiring a valuation.
+
+The verified conversion registry currently recognizes `Item use wallet` (type 2405: item input, item outputs, optional cash) and `Item use empty blood bag` (type 2340: item input to blood-bag output). The accounting engine does not contain Cardholder, Old Wallet, or Blood Bag item IDs; future verified mappings supply the same canonical input/output/cash event shape.
+
+Conversion History now shows an informational `estimatedValueDelta`: the immutable conversion-time value received (cash plus output effective values) less original known basis. It is distinct from `realizedGain`/`realizedLoss`, which remain cash-only accounting outcomes. The UI colors positive value differences green and negative differences red. Purchase-cache clearing also clears the dependent conversion ledger, preventing stale processed-event markers or prior lots from contaminating a rebuilt FIFO history.
+
+An insufficient historical input lot no longer aborts purchase synchronization. ConversionService records that event as an unresolved audit row with its input/output/cash details and an explicit reason, while leaving every lot unchanged and creating no output cost lots. This preserves atomic accounting safety: unknown basis is never silently changed to zero, but an incomplete selected history range cannot prevent later supported acquisitions and conversions from importing.
+
 ## v0.7.3-alpha2 - Data Acquisition Performance
 
 All Torn API endpoints now share `TornRequestQueue` in `js/api-queue.js`. The queue allows one request at a time and records each request start, enforcing a 1,200 ms minimum before the next start rather than adding a fixed pause after the prior response. This targets roughly 50 starts per minute, deliberately below Torn's stated allowance so gameplay, other browser tabs, timing variation, and future sources retain headroom.

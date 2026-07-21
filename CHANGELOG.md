@@ -9,6 +9,15 @@ Item Store added.
 - Added verified `Faction give item receive` ingestion as a Faction Gift with a confirmed $0 cash cost.
 - Added verified `City item find` ingestion as a City Find with a confirmed $0 cash cost.
 
+## Sprint 9 - Inventory Conversion Engine & Market Valuation
+- Added a persistent, account-scoped cost-lot ledger with an explicit FIFO costing strategy.
+- Added ConversionService, immutable ConversionStore records, and verified wallet/blood-bag conversion event mappings.
+- Added MarketValueService using Torn Items values, preserving market price, vendor sell price, and effective value separately.
+- Added Conversion History and Item Details market-value information.
+- Corrected Conversion History to display market-snapshot value difference separately from realized cash gain/loss and to color positive/negative values.
+- Clearing the purchase cache now also clears the dependent conversion ledger so a new initial sync rebuilds FIFO lots correctly.
+- Treat conversions with insufficient tracked input history as unresolved audit records instead of blocking purchase synchronization.
+
 ## v0.5.3.1
 - Improved sortable table UX.
 
