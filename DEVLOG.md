@@ -1,5 +1,35 @@
 # Development Log
 
+## Sprint 10.6 - Legacy Bazaar & Abroad Purchase Canonical Events
+
+The canonical purchase family now covers the verified legacy Bazaar buy (`1220`) and Abroad buy (`4201`) payloads without touching purchase synchronization, lots, FIFO, conversions, or cost basis. Both source shapes are strict scalar purchases: positive numeric `item` and `quantity`, nonnegative numeric `cost_each` and `cost_total`, and a materially consistent unit-times-quantity total are required. Valid records produce one generic acquisition event with item-in and cash-out movements. Legacy Bazaar preserves an optional seller participant; Abroad preserves `area` under generic `attributes.location` rather than translating it into a country-specific schema.
+
+The supplied representative export contained one top-level payload-field signature for each type, but did not include complete archived signature counts. The two parsers therefore declare partial coverage. Any malformed or unverified variant becomes a durable unsupported replay result rather than a zero-cost or incomplete acquisition. Deterministic fixtures cover normal and multi-quantity records, participants/location metadata, invalid fields, inconsistent totals, and duplicate replay behavior.
+
+## Sprint 10.5 - Torn Log Type Catalog & Coverage Intelligence
+
+The archive now has a reference-data catalog for Torn log type IDs. `LogTypeCatalogService` downloads `torn/?selections=logtypes` through the shared API queue, normalizes the ID/title map, and delegates persistence to `LogTypeCatalogRepository`. Migration 004 keeps the current catalog row, first/last observation time, active state, title hash, source version, and import time. New IDs, renamed titles, and IDs absent from a later refresh are recorded as change rows; absent IDs are marked inactive rather than deleted.
+
+Coverage is deliberately a diagnostic join, not a new accounting path. It compares catalog entries with locally observed raw logs and the existing parser registry, reporting supported, partial, unsupported-observed, awaiting-sample, ignored, legacy, and parser-error states. Accounting relevance is an explicit small reviewable mapping; titles alone never select parsers or make accounting decisions. The Settings panel supports a manual Torn catalog refresh, local coverage refresh, and filtering by ID/title and status. Raw evidence, canonical replay behavior, LocalStorage purchases, lots, conversions, and cost basis remain unchanged.
+
+## Sprint 10.3 - Canonical Event Framework & Parser Infrastructure
+
+The SQLite archive now has a derived canonical-event layer: immutable `raw_logs` flow through a versioned `ParserRegistry` into one generic `canonical_events` envelope. Movement records describe broad resource changes (`in`, `out`, and related directions) across extensible resource types rather than creating mechanic-specific tables. Parser version, canonical schema version, and future ledger/projection version are separate concepts.
+
+Migration 003 persists canonical output and one processing-state row per source-log/parser-version. Replay uses deterministic IDs from the source log, parser name/version, and output index, so replays are duplicate-safe and a parser upgrade can be retained separately. The first verified parsers handle Wallet and Empty Blood Bag conversion logs only; unknown logs become explicit unsupported states and parser failures are stored as errors. No LocalStorage accounting path reads canonical events yet.
+
+## Temporary Raw Log Developer Export
+
+The OPFS archive can now be shared for development through a deliberate local JSONL export rather than direct browser-storage access. RawLogExportService filters and pages `raw_logs` through the repository, constructs metadata plus one raw-log envelope per line, and downloads a Blob without sending data anywhere. It never queries settings and never mutates archive, parser, or accounting tables.
+
+Redacted export is the default. Its in-memory pass masks obvious secrets/free text and uses deterministic pseudonyms for likely participant/faction fields while retaining mechanics data such as log/item IDs, quantities, values, titles, and timestamps. It is not a complete anonymity guarantee. Full raw export requires an immediate checkbox confirmation. Large exports yield between pages but Blob output remains memory-bound until a later formal backup/export design.
+
+## Sprint 10.4 - Core Inventory Event Coverage
+
+The canonical layer now recognizes the core inventory-affecting shapes observed in the approximately eight-day archive sample: City Shop, Bazaar, Item Market, trade initiation/offer/expiry, crime item/cash rewards, Faction item receive, and City item find. Each parser produces only generic acquisition, reward, transfer, or activity events and movements. No parser creates an accounting acquisition, FIFO lot, valuation, or cost result.
+
+Trade handling is intentionally conservative. The observed archive shows lifecycle and counterparty-offer events, not enough evidence to assert completed ownership transfer, so it records offered item movements and activity context only. Parser coverage diagnostics group imported records by type/title and payload-field signature, showing selected parser version and imported-data-only support status. Fixtures mirror verified redacted payload structures; unrecognized variants remain durable unsupported results for later discovery.
+
 ## Sprint 10.2 - Raw Log Warehouse and Historical Import Foundation
 
 SQLite now has an immutable raw Torn log warehouse without migrating any active accounting store. Migration 002 adds `raw_logs`, `log_import_runs`, `sync_checkpoints`, and `raw_log_conflicts`. Each raw row keeps the complete individual source object as canonical JSON plus a Web Crypto SHA-256 payload hash. The source ID is unique: repeat observations update only `last_seen_at`, while a changed source payload creates a durable diagnostic and leaves original evidence untouched.

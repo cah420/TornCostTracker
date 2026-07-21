@@ -405,6 +405,30 @@ main {
 .settings-archive-actions .api-key-save { color: white; background: var(--primary); border: 0; margin: 0; }
 .settings-archive-actions button:disabled { cursor: not-allowed; opacity: 0.55; }
 
+.settings-export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.settings-export-grid label { display: grid; gap: 5px; color: var(--text-muted); }
+.settings-export-grid input,
+.settings-export-grid select { min-width: 0; padding: 8px; color: var(--text); background: var(--surface-hover); border: 1px solid var(--border); border-radius: 6px; }
+.settings-catalog-results {
+  max-height: 360px;
+  overflow: auto;
+  margin-top: 12px;
+  padding: 10px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
 .settings-danger-button {
   width: fit-content;
   padding: 9px 12px;

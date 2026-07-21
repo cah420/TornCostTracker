@@ -10,6 +10,32 @@ The active application still uses LocalStorage stores. SQLite infrastructure is 
 
 The raw-log warehouse is an optional, user-triggered SQLite archive. It stores complete canonical source objects without creating accounting records. `RawLogRepository` owns raw rows, import runs, conflicts, and checkpoints. A matching source ID/hash updates only `last_seen_at`; a differing hash creates a conflict record and preserves the original source payload. Historical imports prefer Torn continuation links and deliberately overlap timestamp boundaries when needed; source-ID uniqueness prevents duplicates while avoiding boundary loss. The Settings controls are independent of Purchases and every existing LocalStorage accounting path.
 
+### Canonical events and parser replay
+
+`raw_logs -> ParserRegistry -> canonical_events -> future accounting / analytics / replay projections`
+
+Canonical events are derived, replayable SQLite records, never replacements for immutable raw evidence. Migration 003 adds one generic `canonical_events` envelope and `processing_state` keyed by source log, parser name, and parser version. The envelope contains broad event type, participants, generic resource movements, attributes, source metadata, parser version, and canonical schema version. It does not include FIFO, lots, cost basis, or mechanic-specific tables.
+
+`ParserRegistry` is the parser boundary for new raw-log interpretation. The initial verified Wallet and Blood Bag parsers normalize item/cash movements into broad `conversion` events. Unknown logs become durable `unsupported` states; malformed parser output becomes an `error` state. `ReplayService` reads archived raw logs chronologically and upserts deterministic event IDs (`source log + parser + version + output index`), allowing safe repeated replay and future parser-version upgrades. Existing LocalStorage purchase/conversion accounting does not consume canonical events during this sprint.
+
+Core inventory coverage adds City Shop, Bazaar, Item Market, observed trade lifecycle, crime item/cash reward, Faction item receive, and City item find parsers. They report observable generic movements only. In particular, observed trade initiation/offer/expiry data does not establish a completed trade, so it is recorded as transfer/activity evidence rather than an acquisition or disposal. Coverage diagnostics group imported log types by title, payload-field signature, first/last seen time, count, selected parser/version, and Supported/Partially Supported/Unsupported status. This percentage is strictly coverage of imported archive data, not Torn-wide coverage.
+
+Legacy Bazaar purchase (`1220`) and Abroad purchase (`4201`) extend the configured canonical purchase parser rather than adding a separate accounting path. Their verified scalar payloads require item, quantity, unit cost, and total cost; invalid or materially inconsistent records are unsupported. `1220` adds an optional seller participant, while `4201` keeps numeric `area` in generic location attributes. Both parser definitions currently report partial coverage because the representative export does not establish every archived payload signature. They create only generic canonical acquisition movements and remain disconnected from LocalStorage accounting.
+
+### Torn log type catalog and coverage intelligence
+
+`Torn logtypes endpoint -> LogTypeCatalogService -> LogTypeCatalogRepository -> SQLite torn_log_types` joins separately with `raw_logs -> ParserRegistry` for diagnostics. Migration 004 stores current ID/title reference data and keeps non-destructive change history for new IDs, title changes, and entries no longer returned by Torn; missing entries are inactive, never deleted. The catalog is refreshable only through `js/api.js` and the shared request queue.
+
+Catalog titles are reference data, not parser or accounting instructions. A small explicit classification map records manual relevance decisions. Coverage states distinguish Supported, Partially Supported, Unsupported Observed, Awaiting Sample, Ignored, Legacy, and Parser Error; they are based on observed payload variants in the local archive. This service does not write raw logs, canonical events, acquisitions, lots, conversions, or cost-basis results.
+
+### Raw log developer export
+
+`Settings -> RawLogExportService -> RawLogRepository -> JSONL Blob -> local browser download`
+
+Developer export is read-only: the repository selects only `raw_logs` (and uses `processing_state` only through `EXISTS` filters), while the service pages records in deterministic timestamp/source-ID order. JSONL begins with an export metadata record followed by compact raw-log envelopes containing the original stored individual raw JSON object. No settings, API-key, OPFS, or database-connection data is read or exported.
+
+Redaction is a dedicated in-memory pass, never a database update. It removes obvious secret/free-text fields and deterministically pseudonymizes likely participant/faction identifiers within one export; it retains log type, titles, timestamps, item IDs/names, quantities, and values needed for parser work. Redaction is not a guarantee of anonymity. Full raw export requires an immediate confirmation dialog. Large exports page in batches and yield between pages, but browser Blob construction still ultimately holds the generated file in memory; formal backup/restore is deferred.
+
 ## Torn API scheduling
 
 `API endpoint method -> TornRequestQueue -> fetch -> importer/service`

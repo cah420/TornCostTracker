@@ -25,8 +25,10 @@ const sharedQueue = {
 setTornRequestQueueForTesting(sharedQueue);
 await API.getInventoryPage("Melee");
 await API.getBazaarPage();
-assert.equal(sharedQueue.calls, 2, "v1 and v2 requests enter the same queue");
+await API.getTornLogTypes();
+assert.equal(sharedQueue.calls, 3, "v1 and v2 requests enter the same queue");
 assert.match(calls[0], /^https:\/\/api\.torn\.com\/v2\/user\/inventory/);
 assert.match(calls[1], /^https:\/\/api\.torn\.com\/user\/\?selections=bazaar/);
+assert.match(calls[2], /^https:\/\/api\.torn\.com\/torn\/\?selections=logtypes/);
 resetTornRequestQueueForTesting();
 console.log("API shared-queue coverage tests passed.");

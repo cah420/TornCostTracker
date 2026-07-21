@@ -28,6 +28,10 @@ SQLite migration work has begun behind the existing LocalStorage implementation.
 - Distinguishes known cash cost, confirmed zero-cash cost, non-cash, and unresolved acquisition lots.
 - Tracks verified inventory conversions through FIFO cost lots and shows current market, vendor-sell, and effective values separately.
 - Offers an optional Settings-based SQLite Raw Log Archive for immutable Torn log evidence, with historical import, incremental sync, pause/resume, duplicate detection, and conflict diagnostics. It does not yet alter accounting.
+- Includes an optional canonical-event replay layer for archived logs. Its initial Wallet and Blood Bag parsers create generic derived movements for future analytics; it does not alter current accounting.
+- Canonical parser coverage now includes observed City Shop, current and legacy Bazaar, Abroad Shop, Item Market, trade-offer, crime reward, Faction item receive, and City item find logs. Legacy Bazaar (1220) and Abroad Shop (4201) remain marked partial until full archived signature coverage is verified. This is based on supplied archive evidence, not all Torn mechanics.
+- Includes a refreshable Torn Log Type Catalog and coverage diagnostics that identify which archived log types are supported, awaiting samples, ignored, legacy, or need parser work. These diagnostics do not alter accounting.
+- Provides a developer-only, read-only JSONL export of filtered archived raw logs, with redacted output by default and a confirmation gate for full raw output.
 
 ## Getting started
 
@@ -61,6 +65,9 @@ Your API key is saved only in local browser storage on your device. Do not share
 - **Unresolved trades:** multi-item trades with a combined cash amount are counted as acquired quantity, but their cost is intentionally shown as unknown unless Torn's log data supports a safe prior allocation.
 - **Purchase history range:** the initial import is limited to 1-180 days. Older purchase history is not yet imported automatically.
 - **Raw Log Archive:** SQLite archive availability depends on a secure browser context with Worker and OPFS support. If unavailable, all current LocalStorage features remain usable. The archive may be large and is local/private to this browser; use one active app tab while importing. Archived logs are source evidence only, not parsed accounting records.
+- **Canonical Events:** parser replay is a developer-facing, derived-data feature. Unsupported logs are retained and marked as unsupported; replay does not yet make archived activity affect Purchases, FIFO, conversions, or cost basis.
+- **Log-type coverage:** catalog coverage combines Torn's current reference catalog with this browser's archived samples. Awaiting Sample means no local evidence is archived; Supported means only observed payload variants are handled, not every possible Torn variant.
+- **Developer exports:** Raw Log Developer Export downloads local JSONL files only. It never exports application settings or the saved API key, but full raw logs can contain private activity. Redaction is helpful rather than perfect—review a file before sharing it.
 - **Travel locations:** Abroad purchases use Torn's logged area mapping for Mexico, Hawaii, South Africa, Japan, China, Argentina, Switzerland, Canada, United Kingdom, UAE, and Cayman Islands.
 - **Unique equipment:** weapons and armor are currently aggregated by their base item ID, so each Items row shows the correct combined quantity. Per-instance UID, stats, bonuses, and equipped-state details are deferred to a future feature.
 - **Source verification:** Bazaar, Item Market, Abroad, existing City Shop matching, supported trades, and the exact `Faction give item receive` and `City item find` events are currently normalized. The verified faction gift and City Find are confirmed $0 cash acquisitions; faction loans, rewards, conversions, other gift types, and internal market/display movements are not imported until their directions and payloads are confirmed. City Shop title/payload variants remain deliberately narrow pending an independently captured sample.
@@ -80,6 +87,7 @@ Feedback is most useful when it includes the expected result, actual result, and
 - Search, sort, selection, layout, mobile/desktop display, or accessibility issues.
 - API-key validation, synchronization, or cache-clear errors.
 - Any Torn rate-limit message encountered during ordinary synchronization, including the action being run and approximate time.
+- Torn Log Type Catalog refresh/diff results, unexpected catalog titles, or a redacted sample for an Unsupported Observed or Parser Error entry.
 
 Please do **not** include your API key in a report. If a Torn log is helpful, remove player-identifying information unless it is necessary to diagnose the issue.
 

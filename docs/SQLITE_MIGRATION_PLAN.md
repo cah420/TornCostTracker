@@ -88,6 +88,24 @@ Historical imports are started only from Settings. They request newest-to-oldest
 
 Torn bounds this endpoint to 100 records, so the configurable archive page/batch size defaults to 100 and every complete API page is one `BEGIN IMMEDIATE` transaction. A failed page rolls back raw inserts, conflicts, metrics, and checkpoint together; its continuation is therefore never advanced past an uncommitted page tail. The `opfs-sahpool` database name is an absolute virtual path (`/torn-cost-tracker.sqlite3`), as required by that VFS. Its pool reserves six file slots non-destructively for the database, journal/WAL, and temporary files; this also expands an earlier undersized pool. Future `ParserRegistry` contracts remain detached from import: schema version, parser version, and ledger/projection version are distinct concerns.
 
+## Canonical event framework (Sprint 10.3)
+
+Migration 003 adds generic derived-data tables: `canonical_events` and `processing_state`. Raw logs remain immutable evidence. A canonical event has a deterministic ID, source log ID, timestamp, broad event type, parser name/version, canonical schema version, generic participants, generic resource movements, attributes, and selected source metadata. The full Torn JSON remains only in `raw_logs`.
+
+The versioned `ParserRegistry` is the new interpretation boundary for the SQLite archive. Its verified Wallet and Blood Bag parsers describe conversions as generic item/cash movements; they do not create acquisitions, lots, conversion-ledger records, or cost calculations. Repeated parser replay is idempotent through deterministic IDs. A parser version upgrade can generate a distinct derived result for the same raw log, while schema changes remain explicit migrations. Unsupported and error outcomes are durable processing-state records, not discarded logs.
+
+Replay is user-triggered from Settings, reads raw logs chronologically with a timestamp/source-ID cursor, and has no accounting side effects. The existing LocalStorage purchase importer and FIFO/conversion engine continue to parse and operate independently until a later, separately validated accounting migration.
+
+## Temporary raw-log developer export
+
+Settings can create a local `raw-log-jsonl` developer export from the OPFS archive because OPFS is intentionally not exposed as a normal workspace file. The export metadata line identifies the format/version, creation time, redaction mode, filters, ordering, and matching count. Each subsequent `raw_log` line includes source ID, indexed source fields, optional observation hashes/timestamps, and the complete original object under `raw`.
+
+The default is redacted. A per-export deterministic pseudonym map masks likely user/faction identifiers and obvious secret, token, free-text, email, and URL fields while preserving structural mechanics fields. This is not guaranteed complete privacy protection. Full raw output requires confirmation. Both variants are read-only, local downloads; neither reads settings/API keys nor mutates `raw_logs`, parser state, checkpoints, or canonical events. Exports page through repository queries, but Blob creation remains memory-bound for very large files. This temporary developer tool may later be superseded by formal backup/export features.
+
+## Core inventory canonical coverage (Sprint 10.4)
+
+The observed approximately eight-day archive validates parsers for City Shop purchase (4200), Bazaar purchase (1225), Item Market purchase (1112), trade lifecycle/offer (4401/4420/4482), crime item/cash rewards (9020/9015), Faction item receive (6733), and City item find (7011), alongside earlier Wallet/Blood Bag conversions. Coverage uses payload field signatures and representative raw samples only; future history can reveal additional variants. Unsupported variants remain processing-state results rather than being inferred. The Settings coverage report measures only imported archive type/title groups and is never a claim of complete Torn coverage.
+
 ## Testing strategy
 
 - Deterministic migration-runner tests verify ordering and repeatability.

@@ -82,6 +82,9 @@ export const API={
  async getTornItems(){
   return request("/torn/items");
  },
+ async getTornLogTypes(){
+  return request("/torn/?selections=logtypes", BASE_V1);
+ },
  async getUserLogs({ from = null, to = null, limit = 100, continuation = null } = {}){
   if (continuation) {
    const next = new URL(continuation, BASE_V2);

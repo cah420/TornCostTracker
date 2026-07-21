@@ -13,6 +13,39 @@
 - Manual archive test: in Settings, start a date-bounded Raw Log Archive import, pause after a committed page, reload, and resume. Confirm the count grows without duplicates while Items and Purchases behavior remains unchanged.
 - Manual fallback test: in an OPFS-unavailable browser/context, confirm the archive reports unavailable while normal profile, item, and purchase workflows remain usable.
 
+## Canonical events (Sprint 10.3)
+
+- Run `node --experimental-default-type=module js/services/history/canonical-event.test.mjs` for parser registration, deterministic Wallet/Blood Bag output, unknown-log state, replay, and duplicate replay coverage.
+- Run `node --experimental-default-type=module js/database/migrations/canonical-events.test.mjs` for canonical-event migration coverage.
+- Manual test: archive a known Wallet or Empty Blood Bag log, use Settings → Replay Archived Logs, then confirm Canonical Event Diagnostics reports a generated event. Confirm Purchases, Items, conversions, and cost-basis values do not change.
+
+## Core inventory canonical coverage (Sprint 10.4)
+
+- Run `node --experimental-default-type=module js/services/history/core-inventory-parsers.test.mjs` for verified City Shop, Bazaar, Item Market, trade offer, crime rewards, Faction item receive, City find, movement/participant, and unsupported-variant fixtures.
+- In Settings → Canonical Event Diagnostics, select **Refresh Coverage**. Confirm counts are labeled as imported-data coverage only, and that unknown types remain Unsupported.
+- Replay the archive after importing new logs. Confirm canonical event changes do not alter Items, Purchases, FIFO, conversion history, or cost basis.
+
+## Torn Log Type Catalog & Coverage Intelligence (Sprint 10.5)
+
+- In Settings, select **Refresh Torn Catalog** and confirm the catalog summary reports total, new, renamed, and inactive counts. Repeat the refresh without a Torn change and confirm no entries are reported as new or renamed.
+- Confirm **Refresh Coverage** works without an API request and combines the local archive with registered parsers. Search by exact ID/title and filter every status: Supported, Partially Supported, Unsupported Observed, Awaiting Sample, Ignored, Legacy, and Parser Error.
+- Confirm a catalog type with no archived row is Awaiting Sample, an archived type missing/inactive in the current catalog is Legacy, and known Bazaar/Item Market lifecycle types remain Ignored.
+- Confirm catalog refresh and coverage never change raw-log counts, canonical event counts, Purchases, FIFO lots, conversions, or cost basis.
+- Run `node --experimental-default-type=module js/database/migrations/torn-log-type-catalog.test.mjs`, `node --experimental-default-type=module js/database/log-type-catalog-repository.test.mjs`, and `node --experimental-default-type=module js/services/history/log-type-catalog-service.test.mjs`.
+
+## Legacy Bazaar & Abroad Purchase Canonical Events (Sprint 10.6)
+
+- Run `node --experimental-default-type=module js/services/history/core-inventory-parsers.test.mjs` and `node --experimental-default-type=module js/services/history/canonical-event.test.mjs`.
+- Replay verified 1220 and 4201 records: confirm each creates one `acquisition` event with item `in` and cash `out` movements; confirm 1220 retains a seller participant and 4201 stores numeric `attributes.location.area`.
+- Confirm missing/invalid item, quantity, cost fields, area (4201), and materially inconsistent unit/total consideration are recorded as unsupported, not as zero-cost acquisitions.
+- Run a second replay and confirm the same parser version creates no duplicate canonical events. Confirm Purchases, FIFO lots, conversions, and cost basis remain unchanged.
+
+## Temporary raw-log developer export
+
+- Run `node --experimental-default-type=module js/services/history/raw-log-export-service.test.mjs` for filtered/paged JSONL export, metadata, deterministic ordering, redaction, filename, and source-integrity coverage.
+- Manual test: Settings → Raw Log Developer Export, choose a small redacted sample, export it, and parse each line as JSON. The first line is metadata; later lines have `_recordType: raw_log`. Confirm archive counts/checkpoints remain unchanged.
+- Full raw output requires confirmation. Treat it as private account activity and review the downloaded file before attaching it for parser analysis.
+
 ## Sprint 9 - Inventory Conversion Engine & Market Valuation
 
 - Run `node --experimental-default-type=module js/services/conversion-service.test.mjs` to validate FIFO ordering, partial consumption, unresolved handling, cash recovery/gain, effective-value allocation, immutable input snapshots, and verified conversion mappings.

@@ -1,8 +1,32 @@
+# Sprint 10.5 - Torn Log Type Catalog & Coverage Intelligence
+- Added SQLite migration 004 for a durable Torn log-type reference catalog, including active/inactive state and append-only new/renamed/removed change history.
+- Added an API-queued Torn `logtypes` refresh plus Settings diagnostics that compare the official catalog, locally observed archive records, and registered parser coverage.
+- Added explicit manual classifications and Supported, Partially Supported, Unsupported Observed, Awaiting Sample, Ignored, Legacy, and Parser Error states without changing raw logs, parser replay, or accounting.
+
+# Sprint 10.6 - Legacy Bazaar & Abroad Purchase Canonical Events
+- Added verified canonical acquisition parsers for legacy Bazaar buys (1220) and Abroad buys (4201), including item-in, cash-out, unit/total consideration, seller, and generic area metadata where present.
+- Added strict scalar-purchase validation for these new parser configurations; malformed, missing, and materially inconsistent consideration variants remain explicit unsupported results.
+- Marked both parsers as partial coverage because the representative export cannot prove every archived payload signature is covered.
+
 # Sprint 10.2 - Raw Log Warehouse and Historical Import Foundation
 - Added SQLite migration 002 with immutable `raw_logs`, durable import runs, resumable checkpoints, and conflict diagnostics.
 - Added a user-triggered Settings archive workflow for historical and incremental raw Torn log imports, with pause, resume, cancel, retry, and local diagnostics.
 - Added canonical JSON SHA-256 hashing, duplicate-safe source-log IDs, conflict preservation, batched transactions, and a future parser/replay contract.
 - Kept LocalStorage purchases, FIFO, conversions, and cost basis fully authoritative and unchanged.
+
+# Sprint 10.3 - Canonical Event Framework & Parser Infrastructure
+- Added migration 003 with generic canonical events and durable versioned processing state.
+- Added deterministic parser registry/replay infrastructure and verified Wallet/Blood Bag conversion parsers.
+- Added Settings diagnostics and explicit unsupported/parser-error reporting; canonical events remain disconnected from active accounting.
+
+# Temporary Raw Log Developer Export
+- Added a local, read-only filtered JSONL export for archived raw logs with deterministic sample controls, parser-state filters, progress, and cancellation.
+- Added redacted developer output by default plus a confirmed full-raw option; no application settings or API keys are queried or exported.
+
+# Sprint 10.4 - Core Inventory Event Coverage
+- Added verified generic canonical parsers for observed City Shop, Bazaar, Item Market, trade-offer, crime reward, Faction item receive, and City item find payloads.
+- Added fixture library, unsupported-variant handling, and imported-data parser coverage diagnostics with payload signatures.
+- Kept canonical events and all current LocalStorage accounting paths separate.
 
 # v0.5.2
 Item Store added.

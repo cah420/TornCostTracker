@@ -5,6 +5,26 @@ const STREAM_NAME = "torn-user-logs";
 function placeholders(count){ return Array.from({ length: count }, () => "?").join(", "); }
 function number(value){ const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }
 
+function exportWhere(filters, cursor = null){
+  const conditions = []; const bind = [];
+  if (filters.fromTimestamp !== null) { conditions.push("r.event_timestamp >= ?"); bind.push(filters.fromTimestamp); }
+  if (filters.toTimestamp !== null) { conditions.push("r.event_timestamp <= ?"); bind.push(filters.toTimestamp); }
+  if (filters.logTypeIds?.length) { conditions.push(`r.log_type_id IN (${placeholders(filters.logTypeIds.length)})`); bind.push(...filters.logTypeIds); }
+  if (filters.category) { conditions.push("r.category = ?"); bind.push(filters.category); }
+  if (filters.titleSearch) { conditions.push("LOWER(r.title) LIKE ?"); bind.push(`%${filters.titleSearch.toLowerCase()}%`); }
+  if (filters.sourceLogId) { conditions.push("r.source_log_id = ?"); bind.push(filters.sourceLogId); }
+  if (filters.processing !== "all") {
+    conditions.push("EXISTS (SELECT 1 FROM processing_state p WHERE p.source_log_id = r.source_log_id AND p.status = ?)");
+    bind.push(filters.processing);
+  }
+  if (cursor) {
+    const comparison = filters.sortOrder === "newest" ? "<" : ">";
+    conditions.push(`(r.event_timestamp ${comparison} ? OR (r.event_timestamp = ? AND r.source_log_id ${comparison} ?))`);
+    bind.push(cursor.timestamp, cursor.timestamp, cursor.sourceLogId);
+  }
+  return { where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", bind };
+}
+
 /** SQLite-only archive repository. It intentionally contains no accounting rules. */
 export class RawLogRepository {
   constructor(database = Database){ this.database = database; }
@@ -120,6 +140,38 @@ export class RawLogRepository {
     bind.push(Math.max(1, Math.min(Number(limit) || 100, 500)));
     return this.database.query(`SELECT * FROM raw_logs ${predicates.length ? `WHERE ${predicates.join(" AND ")}` : ""}
       ORDER BY event_timestamp ${descending ? "DESC" : "ASC"}, source_log_id ${descending ? "DESC" : "ASC"} LIMIT ?`, bind);
+  }
+
+  async pageForReplay({ timestamp = null, sourceLogId = null, limit = 100 } = {}){
+    const bind = [];
+    let where = "";
+    if (timestamp !== null) {
+      where = "WHERE COALESCE(event_timestamp, 0) > ? OR (COALESCE(event_timestamp, 0) = ? AND source_log_id > ?)";
+      bind.push(timestamp, timestamp, sourceLogId ?? "");
+    }
+    bind.push(Math.max(1, Math.min(Number(limit) || 100, 500)));
+    return this.database.query(`SELECT *, COALESCE(event_timestamp, 0) AS replay_timestamp FROM raw_logs ${where}
+      ORDER BY COALESCE(event_timestamp, 0) ASC, source_log_id ASC LIMIT ?`, bind);
+  }
+
+  async countForExport(filters){
+    const { where, bind } = exportWhere(filters);
+    const [row] = await this.database.query(`SELECT COUNT(*) AS count FROM raw_logs r ${where}`, bind);
+    return number(row?.count) ?? 0;
+  }
+
+  async pageForExport(filters, { cursor = null, limit = 100 } = {}){
+    const { where, bind } = exportWhere(filters, cursor);
+    bind.push(Math.max(1, Math.min(Number(limit) || 100, 500)));
+    const direction = filters.sortOrder === "newest" ? "DESC" : "ASC";
+    return this.database.query(`SELECT r.source_log_id, r.event_timestamp, r.log_type_id, r.category, r.title, r.raw_json,
+      r.payload_hash, r.imported_at, r.first_seen_at, r.last_seen_at FROM raw_logs r ${where}
+      ORDER BY r.event_timestamp ${direction}, r.source_log_id ${direction} LIMIT ?`, bind);
+  }
+
+  async parserCoverageRows(){
+    return this.database.query(`SELECT log_type_id, title, event_timestamp, raw_json FROM raw_logs
+      ORDER BY log_type_id ASC, title ASC, event_timestamp ASC, source_log_id ASC`);
   }
 }
 
