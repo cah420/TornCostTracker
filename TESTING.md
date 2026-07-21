@@ -10,7 +10,7 @@
 - Interrupt a conversion processing attempt through a missing required multi-output value: confirm no lot quantities or conversion history rows are partially committed; restore the required data and retry.
 - Import a conversion whose input item has no tracked acquisition lot: confirm purchase synchronization completes, Conversion History shows an unresolved row, and no input/output cost lots are created or consumed.
 
-## v0.7.3-alpha2 - Data Acquisition Performance
+## v0.8.0-alpha1 - Acquisition Performance, Cost Lots & Conversion Valuation
 
 - Run `node --experimental-default-type=module js/api-queue.test.mjs`: confirm 1,200 ms request-start spacing, stable queue order, no concurrent work, no idle-queue burst, recoverable failure handling, and rate-limit backoff.
 - Run `node --experimental-default-type=module js/api.test.mjs`: confirm Torn v1 and v2 endpoint methods enter the same shared scheduler.

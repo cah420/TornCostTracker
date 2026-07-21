@@ -1,6 +1,6 @@
 # Development Log
 
-## Sprint 9 - Inventory Conversion Engine & Market Valuation
+## v0.8.0-alpha1 - Inventory Conversion Engine & Market Valuation
 
 Inventory accounting now has a dedicated ledger boundary: `Acquisitions + Conversion Events -> Cost Lots -> Conversion History`. `CostLotStore` and `ConversionStore` share one account-scoped persisted ledger document, allowing a conversion's consumed lots, output lots, processed-event marker, and immutable history record to commit together. Existing acquisition records create lots only once; verified conversion events are retained independently so interrupted processing can safely retry without consuming a lot twice.
 
@@ -14,7 +14,7 @@ Conversion History now shows an informational `estimatedValueDelta`: the immutab
 
 An insufficient historical input lot no longer aborts purchase synchronization. ConversionService records that event as an unresolved audit row with its input/output/cash details and an explicit reason, while leaving every lot unchanged and creating no output cost lots. This preserves atomic accounting safety: unknown basis is never silently changed to zero, but an incomplete selected history range cannot prevent later supported acquisitions and conversions from importing.
 
-## v0.7.3-alpha2 - Data Acquisition Performance
+## Data Acquisition Performance (included in v0.8.0-alpha1)
 
 All Torn API endpoints now share `TornRequestQueue` in `js/api-queue.js`. The queue allows one request at a time and records each request start, enforcing a 1,200 ms minimum before the next start rather than adding a fixed pause after the prior response. This targets roughly 50 starts per minute, deliberately below Torn's stated allowance so gameplay, other browser tabs, timing variation, and future sources retain headroom.
 

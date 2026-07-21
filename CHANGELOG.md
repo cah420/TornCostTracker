@@ -1,7 +1,7 @@
 # v0.5.2
 Item Store added.
 
-## v0.7.3-alpha2 - Data Acquisition Performance
+## v0.8.0-alpha1 - Acquisition Performance, Cost Lots & Conversion Valuation
 - Replaced the shared post-response 2,500 ms pause with a centralized 1,200 ms minimum interval between Torn API request starts.
 - Kept every Torn v1 and v2 request in one ordered, single-request scheduler, covering profile, inventory, Bazaar, Display Case, Item Market, logs, and the item catalog.
 - Added conservative ordered rate-limit backoff (5, 10, then 20 seconds) with a visible status message and no request burst after idle or background-tab delays.
