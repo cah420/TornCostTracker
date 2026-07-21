@@ -1,5 +1,15 @@
 # Architecture
 
+## SQLite migration foundation
+
+The active application still uses LocalStorage stores. SQLite infrastructure is intentionally dormant while repositories are introduced one persistence domain at a time. The planned boundary is `UI -> services -> repository interfaces -> SQLite repositories -> worker-hosted SQLite WASM/OPFS`. SQL, schema migrations, and transactions stay inside `js/database`; services and views will not contain SQL. See [SQLite Migration Plan](SQLITE_MIGRATION_PLAN.md) for the selected official-WASM/OPFS approach, browser limitations, schema, and phased cutover.
+
+### Raw log warehouse
+
+`Torn API -> RawLogImportService -> RawLogRepository -> SQLite raw_logs -> future ParserRegistry -> future canonical events/replay`
+
+The raw-log warehouse is an optional, user-triggered SQLite archive. It stores complete canonical source objects without creating accounting records. `RawLogRepository` owns raw rows, import runs, conflicts, and checkpoints. A matching source ID/hash updates only `last_seen_at`; a differing hash creates a conflict record and preserves the original source payload. Historical imports prefer Torn continuation links and deliberately overlap timestamp boundaries when needed; source-ID uniqueness prevents duplicates while avoiding boundary loss. The Settings controls are independent of Purchases and every existing LocalStorage accounting path.
+
 ## Torn API scheduling
 
 `API endpoint method -> TornRequestQueue -> fetch -> importer/service`

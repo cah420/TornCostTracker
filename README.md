@@ -6,6 +6,8 @@ Torn Cost Tracker is an early desktop-style web application for tracking your cu
 
 This alpha is intended for player testing. Data is stored locally in your browser on the device where you run the application.
 
+SQLite migration work has begun behind the existing LocalStorage implementation. Current player data and app behavior remain LocalStorage-backed while the new browser-database layer is validated.
+
 ## What it currently does
 
 - Connects to Torn using a limited-access API key.
@@ -25,6 +27,7 @@ This alpha is intended for player testing. Data is stored locally in your browse
 - Separately reports quantity coverage and reliably priced coverage so unknown costs are not presented as zero.
 - Distinguishes known cash cost, confirmed zero-cash cost, non-cash, and unresolved acquisition lots.
 - Tracks verified inventory conversions through FIFO cost lots and shows current market, vendor-sell, and effective values separately.
+- Offers an optional Settings-based SQLite Raw Log Archive for immutable Torn log evidence, with historical import, incremental sync, pause/resume, duplicate detection, and conflict diagnostics. It does not yet alter accounting.
 
 ## Getting started
 
@@ -34,6 +37,7 @@ This alpha is intended for player testing. Data is stored locally in your browse
 4. Open **Items** and select **Refresh** to synchronize your owned items.
 5. Open **Purchases** and choose the number of days of purchase history to import for the initial sync.
 6. Select an item on the Items page, then open **Purchases** in Item Details to view its estimated cost basis.
+7. Optionally use **Settings → Raw Log Archive** to archive log history locally for future analysis. This is separate from Purchases and does not account, reconcile, or cost the archived logs.
 
 Your API key is saved only in local browser storage on your device. Do not share it, screenshots containing it, or browser-storage exports with anyone.
 
@@ -56,6 +60,7 @@ Your API key is saved only in local browser storage on your device. Do not share
 - **Cash-cost scope:** zero-cost and non-cash are different. Only confirmed external free acquisitions may be recorded at $0; non-cash, conversion, and unresolved sources are not assigned a fabricated dollar value.
 - **Unresolved trades:** multi-item trades with a combined cash amount are counted as acquired quantity, but their cost is intentionally shown as unknown unless Torn's log data supports a safe prior allocation.
 - **Purchase history range:** the initial import is limited to 1-180 days. Older purchase history is not yet imported automatically.
+- **Raw Log Archive:** SQLite archive availability depends on a secure browser context with Worker and OPFS support. If unavailable, all current LocalStorage features remain usable. The archive may be large and is local/private to this browser; use one active app tab while importing. Archived logs are source evidence only, not parsed accounting records.
 - **Travel locations:** Abroad purchases use Torn's logged area mapping for Mexico, Hawaii, South Africa, Japan, China, Argentina, Switzerland, Canada, United Kingdom, UAE, and Cayman Islands.
 - **Unique equipment:** weapons and armor are currently aggregated by their base item ID, so each Items row shows the correct combined quantity. Per-instance UID, stats, bonuses, and equipped-state details are deferred to a future feature.
 - **Source verification:** Bazaar, Item Market, Abroad, existing City Shop matching, supported trades, and the exact `Faction give item receive` and `City item find` events are currently normalized. The verified faction gift and City Find are confirmed $0 cash acquisitions; faction loans, rewards, conversions, other gift types, and internal market/display movements are not imported until their directions and payloads are confirmed. City Shop title/payload variants remain deliberately narrow pending an independently captured sample.

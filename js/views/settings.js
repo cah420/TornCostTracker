@@ -9,6 +9,14 @@ import { ItemStore } from "../stores/items.js";
 import { ItemSyncService } from "../services/item-sync-service.js";
 import { ItemCatalogStore } from "../stores/item-catalog.js";
 import { ConversionStore } from "../stores/inventory-ledger.js";
+import { Database } from "../database/database-client.js";
+import { DatabaseDiagnostics } from "../database/database-diagnostics.js";
+import { RawLogs } from "../services/raw-log-import-service.js";
+
+function formatArchiveTime(timestamp){
+  return timestamp ? new Date(Number(timestamp) * 1000).toLocaleString() : "Not archived yet";
+}
+let archiveProgressListener = null;
 
 export default {
   route: "settings",
@@ -39,6 +47,22 @@ export default {
         <p>Clear locally saved purchase history, conversion ledger/history, and purchase-sync checkpoints for every cached account on this device.</p>
         <button id="clearPurchaseCacheBtn" class="settings-danger-button" type="button">Clear Purchase Cache</button>
       </section>
+      <section class="settings-raw-log-archive">
+        <h3>Raw Log Archive</h3>
+        <p>Archives complete Torn log records locally in SQLite for future analysis. Archived logs are not yet interpreted for accounting, and this does not change purchase synchronization.</p>
+        <div id="rawLogArchiveStatus" class="settings-archive-status" aria-live="polite">Checking SQLite archive availability...</div>
+        <label for="rawLogArchiveFrom">Archive from (optional)</label>
+        <input id="rawLogArchiveFrom" type="date">
+        <div class="settings-archive-actions">
+          <button id="startRawLogArchiveBtn" class="api-key-save" type="button">Start Historical Import</button>
+          <button id="resumeRawLogArchiveBtn" type="button">Resume</button>
+          <button id="incrementalRawLogArchiveBtn" type="button">Run Incremental Sync</button>
+          <button id="pauseRawLogArchiveBtn" type="button">Pause</button>
+          <button id="cancelRawLogArchiveBtn" type="button">Cancel</button>
+          <button id="retryRawLogArchiveBtn" type="button">Retry Failed Import</button>
+          <button id="refreshRawLogArchiveBtn" type="button">Refresh Diagnostics</button>
+        </div>
+      </section>
       <section class="settings-purchase-cache">
         <h3>Item cache</h3>
         <p>Clear locally saved owned items, the Torn item catalog, and item synchronization status. The next refresh rebuilds the cache.</p>
@@ -56,7 +80,59 @@ export default {
       "clearPurchaseCacheBtn",
     );
     const clearItemCacheButton = document.getElementById("clearItemCacheBtn");
+    const archiveStatus = document.getElementById("rawLogArchiveStatus");
+    const archiveFrom = document.getElementById("rawLogArchiveFrom");
+    const archiveButtons = Object.fromEntries([
+      "startRawLogArchiveBtn", "resumeRawLogArchiveBtn", "incrementalRawLogArchiveBtn", "pauseRawLogArchiveBtn", "cancelRawLogArchiveBtn", "retryRawLogArchiveBtn", "refreshRawLogArchiveBtn",
+    ].map((id) => [id, document.getElementById(id)]));
     apiKeyInput.value = Settings.load().apiKey ?? "";
+
+    const setArchiveControls = (busy = false, available = true) => {
+      ["startRawLogArchiveBtn", "resumeRawLogArchiveBtn", "incrementalRawLogArchiveBtn", "retryRawLogArchiveBtn"].forEach((id) => { archiveButtons[id].disabled = busy || !available; });
+      archiveButtons.pauseRawLogArchiveBtn.disabled = !busy || !available;
+      archiveButtons.cancelRawLogArchiveBtn.disabled = !busy || !available;
+    };
+    const refreshArchive = async () => {
+      const database = await Database.initialize();
+      if (!database.available) {
+        archiveStatus.textContent = `SQLite archive unavailable: ${database.reason}`;
+        setArchiveControls(false, false);
+        return;
+      }
+      const info = await RawLogs.availability();
+      const diagnostics = DatabaseDiagnostics.snapshot();
+      const run = info.latestRun;
+      archiveStatus.textContent = `SQLite: available (${diagnostics.vfs ?? "OPFS"})
+Archived: ${info.archive.totalRawLogs} logs · Oldest: ${formatArchiveTime(info.archive.oldestTimestamp)} · Newest: ${formatArchiveTime(info.archive.newestTimestamp)}
+Last import: ${run ? `${run.import_type} — ${run.status}` : "None"} · Pages: ${run?.pages_fetched ?? 0} · Downloaded: ${run?.logs_received ?? 0}
+Stored: ${run?.logs_inserted ?? 0} · Duplicates: ${run?.duplicates_detected ?? 0} · Conflicts: ${info.archive.conflictCount} · Elapsed: ${run?.started_at && (run?.completed_at ?? run?.stopped_at) ? `${Math.round(((run.completed_at ?? run.stopped_at) - run.started_at) / 1000)}s` : "—"}
+        Last checkpoint: ${(info.incrementalCheckpoint ?? info.historicalCheckpoint)?.cursor_timestamp ? formatArchiveTime((info.incrementalCheckpoint ?? info.historicalCheckpoint).cursor_timestamp) : "None"}${run?.error_summary ? `
+Last error: ${run.error_summary}` : ""}`;
+      setArchiveControls(false, true);
+    };
+    const runArchive = async (work) => {
+      setArchiveControls(true, true);
+      archiveStatus.textContent = "Raw log import running. Progress is retained after each committed page...";
+      try { await work(); }
+      catch (error) { archiveStatus.textContent = `Raw log import failed: ${error.message}`; }
+      finally { await refreshArchive(); }
+    };
+    archiveButtons.startRawLogArchiveBtn.addEventListener("click", () => {
+      const value = archiveFrom.value ? Math.floor(new Date(`${archiveFrom.value}T00:00:00`).getTime() / 1000) : null;
+      void runArchive(() => RawLogs.startHistorical({ fromTimestamp: value }));
+    });
+    archiveButtons.resumeRawLogArchiveBtn.addEventListener("click", () => void runArchive(() => RawLogs.resumeHistorical()));
+    archiveButtons.incrementalRawLogArchiveBtn.addEventListener("click", () => void runArchive(() => RawLogs.incrementalSync()));
+    archiveButtons.retryRawLogArchiveBtn.addEventListener("click", () => void runArchive(() => RawLogs.retryLatest()));
+    archiveButtons.pauseRawLogArchiveBtn.addEventListener("click", () => { RawLogs.pause(); archiveStatus.textContent = "Pause requested. The archive will pause after its current page commits."; });
+    archiveButtons.cancelRawLogArchiveBtn.addEventListener("click", () => { RawLogs.cancel(); archiveStatus.textContent = "Cancellation requested. Archived logs will be retained."; });
+    archiveButtons.refreshRawLogArchiveBtn.addEventListener("click", () => void refreshArchive());
+    archiveProgressListener = (update) => {
+      if (!RawLogs.active) return;
+      archiveStatus.textContent = `Raw log import ${update.status}: ${update.logsInserted ?? 0} stored, ${update.duplicates ?? 0} duplicates, ${update.conflicts ?? 0} conflicts, ${update.pagesFetched ?? 0} pages.`;
+    };
+    Events.on("rawLogImportProgress", archiveProgressListener);
+    void refreshArchive().catch((error) => { archiveStatus.textContent = `SQLite archive unavailable: ${error.message}`; setArchiveControls(false, false); });
 
     const saveAndRefresh = async () => {
       Settings.save({ apiKey: apiKeyInput.value.trim() });
@@ -172,5 +248,10 @@ export default {
       );
       dialog.showModal();
     });
+  },
+
+  destroy() {
+    if (archiveProgressListener) Events.off("rawLogImportProgress", archiveProgressListener);
+    archiveProgressListener = null;
   },
 };

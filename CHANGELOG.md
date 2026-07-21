@@ -1,5 +1,15 @@
+# Sprint 10.2 - Raw Log Warehouse and Historical Import Foundation
+- Added SQLite migration 002 with immutable `raw_logs`, durable import runs, resumable checkpoints, and conflict diagnostics.
+- Added a user-triggered Settings archive workflow for historical and incremental raw Torn log imports, with pause, resume, cancel, retry, and local diagnostics.
+- Added canonical JSON SHA-256 hashing, duplicate-safe source-log IDs, conflict preservation, batched transactions, and a future parser/replay contract.
+- Kept LocalStorage purchases, FIFO, conversions, and cost basis fully authoritative and unchanged.
+
 # v0.5.2
 Item Store added.
+
+## SQLite Migration Foundation
+- Added an official SQLite WASM 3.53.3 vendor bundle, worker lifecycle, OPFS capability diagnostics, and numbered migration runner.
+- Kept LocalStorage stores active while SQLite repository migration is planned and validated incrementally.
 
 ## v0.8.0-alpha1 - Acquisition Performance, Cost Lots & Conversion Valuation
 - Replaced the shared post-response 2,500 ms pause with a centralized 1,200 ms minimum interval between Torn API request starts.

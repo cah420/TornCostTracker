@@ -1,5 +1,19 @@
 # Development Log
 
+## Sprint 10.2 - Raw Log Warehouse and Historical Import Foundation
+
+SQLite now has an immutable raw Torn log warehouse without migrating any active accounting store. Migration 002 adds `raw_logs`, `log_import_runs`, `sync_checkpoints`, and `raw_log_conflicts`. Each raw row keeps the complete individual source object as canonical JSON plus a Web Crypto SHA-256 payload hash. The source ID is unique: repeat observations update only `last_seen_at`, while a changed source payload creates a durable diagnostic and leaves original evidence untouched.
+
+`RawLogImportService` is a separate Torn-log archival path. It uses the existing shared API queue but does not call PurchaseLogImporter or any accounting service/store. Historical imports are explicitly started in Settings, process newest-to-oldest using Torn continuation URLs where available, commit batches and checkpoints together, and can pause, cancel, fail, refresh, and resume without deleting archived data. Incremental archive sync deliberately overlaps the newest timestamp and relies on source-ID uniqueness. Browser interruption changes durable running imports to paused at the next successful SQLite startup.
+
+The archive remains optional: SQLite/OPFS failure leaves all existing LocalStorage application behavior operational. The parser registry added this sprint is a contract only; parser, ledger, and schema versions are documented as separate concerns. No acquisitions, lots, FIFO results, conversions, or current cost basis results are derived from archived raw logs yet.
+
+## SQLite Migration Foundation
+
+The application now initializes a dormant SQLite foundation on startup without changing any active LocalStorage-backed store. `DatabaseClient` owns worker lifecycle and graceful capability fallback; the dedicated module worker owns the pinned official SQLite WASM runtime, OPFS `opfs-sahpool` VFS, SQL, foreign-key enforcement, transaction batches, and export plumbing. If OPFS, worker support, or initialization is unavailable, diagnostics report compatibility mode and the SPA continues normally.
+
+The first numbered migration establishes `schema_migrations` and `application_metadata`. It is repeatable and tested. The detailed repository audit, selected implementation, browser tradeoffs, phased schema, migration sequence, and testing matrix live in `docs/SQLITE_MIGRATION_PLAN.md`. No LocalStorage key is deleted, and no existing service or view has been switched to SQLite yet.
+
 ## v0.8.0-alpha1 - Inventory Conversion Engine & Market Valuation
 
 Inventory accounting now has a dedicated ledger boundary: `Acquisitions + Conversion Events -> Cost Lots -> Conversion History`. `CostLotStore` and `ConversionStore` share one account-scoped persisted ledger document, allowing a conversion's consumed lots, output lots, processed-event marker, and immutable history record to commit together. Existing acquisition records create lots only once; verified conversion events are retained independently so interrupted processing can safely retry without consuming a lot twice.

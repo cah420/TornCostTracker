@@ -4,6 +4,8 @@ import { StatusBar } from "./components/status-bar.js";
 import { PlayerStore } from "./stores/player.js";
 import { SnapshotService } from "./services/history/snapshot-service.js";
 import { initializeSidebarToggle } from "./sidebar-controller.js";
+import { Database } from "./database/database-client.js";
+import { RawLogs } from "./services/raw-log-import-service.js";
 
 import Dashboard from "./views/dashboard.js";
 import Items from "./views/items.js";
@@ -36,6 +38,14 @@ async function applyVersion(){
 initializeSidebarToggle();
 new StatusBar(document.getElementById("status"));
 SnapshotService.start();
+// SQLite is initialized opportunistically. LocalStorage stores remain the
+// active persistence layer until their repository migrations are verified.
+void Database.initialize().then((result) => {
+  // A browser refresh cannot leave an archive import ambiguously "running".
+  // This never starts an import and does not affect LocalStorage workflows.
+  if (result.available) return RawLogs.recoverInterruptedRuns().catch((error) => console.warn("Unable to recover raw-log archive state:", error.message));
+  return null;
+});
 void applyVersion();
 void PlayerStore.refreshIfConfigured()
   .then((player)=>{

@@ -18,6 +18,8 @@
 
 ## Synchronization enhancements
 - Shared ordered Torn API scheduling at a conservative 1,200 ms start interval, with bounded rate-limit backoff and persisted refresh summaries in ItemSyncService.
+- SQLite migration foundation: official WASM/OPFS worker, schema migrations, repository contracts, diagnostics, and LocalStorage-compatible staged cutover.
+- SQLite raw-log warehouse: immutable raw Torn evidence, resumable historical/incremental archive imports, conflict diagnostics, and parser/replay contracts while LocalStorage accounting remains active.
 
 ## Future
 - Cost-basis allocation for unresolved trades.

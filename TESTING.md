@@ -1,5 +1,18 @@
 # Manual verification
 
+## SQLite migration foundation
+
+- Run `node --experimental-default-type=module js/database/migration-runner.test.mjs`: verify numbered migrations apply once in ascending order and are repeatable.
+- In a secure, OPFS-capable browser, initialize the database infrastructure manually during development and confirm diagnostics report the `opfs-sahpool` VFS, SQLite version, and schema version. Existing Items, Purchases, conversion, and settings flows must still use LocalStorage unchanged.
+- In an OPFS-unavailable browser/private context, confirm diagnostics report LocalStorage compatibility mode and the existing application remains functional.
+
+## SQLite raw-log warehouse (Sprint 10.2)
+
+- Run `node --experimental-default-type=module js/services/raw-log-import-service.test.mjs` for deterministic continuation and timestamp-fallback pagination, unknown-log retention, duplicate, conflict, full-payload, pause/resume, failure, and stable-serialization coverage.
+- Run `node --experimental-default-type=module js/database/raw-log-repository.test.mjs` and `js/database/migrations/raw-log-warehouse.test.mjs` for transaction and schema coverage.
+- Manual archive test: in Settings, start a date-bounded Raw Log Archive import, pause after a committed page, reload, and resume. Confirm the count grows without duplicates while Items and Purchases behavior remains unchanged.
+- Manual fallback test: in an OPFS-unavailable browser/context, confirm the archive reports unavailable while normal profile, item, and purchase workflows remain usable.
+
 ## Sprint 9 - Inventory Conversion Engine & Market Valuation
 
 - Run `node --experimental-default-type=module js/services/conversion-service.test.mjs` to validate FIFO ordering, partial consumption, unresolved handling, cash recovery/gain, effective-value allocation, immutable input snapshots, and verified conversion mappings.
@@ -139,3 +152,5 @@
 - Sync while Bazaar is closed/unavailable: confirm its cached quantity remains unchanged.
 - Confirm corrected total quantity appears in snapshots and changes current-quantity/coverage values in Item Details > Purchases.
 - Run `node --experimental-default-type=module js/stores/items-aggregation.test.mjs` for all-location duplicate aggregation, replacement, idempotency, cache preservation, cost-basis, and snapshot coverage.
+- Manual browser test: use Settings → Raw Log Archive, start a bounded historical import, pause after a committed page, refresh, and use Resume. Confirm the archived count increases without duplicates and the Purchases/Items LocalStorage workflows are unchanged.
+- Manual fallback test: use a browser/context without OPFS support and confirm the archive controls report unavailable while normal profile, item, and purchase workflows still start.
