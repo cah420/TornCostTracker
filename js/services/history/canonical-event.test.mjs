@@ -65,12 +65,23 @@ assert.equal(events.events.size, 1);
 const purchaseRegistry = new ParserRegistry();
 CoreInventoryParsers.forEach((parser) => purchaseRegistry.register(parser));
 const purchaseRows = [
+  { source_log_id: "legacy-item-market-purchase", event_timestamp: 199, replay_timestamp: 199, raw_json: JSON.stringify(coreInventoryFixtures.legacyItemMarketPurchase) },
   { source_log_id: "legacy-bazaar", event_timestamp: 200, replay_timestamp: 200, raw_json: JSON.stringify(coreInventoryFixtures.legacyBazaarMultiple) },
   { source_log_id: "abroad", event_timestamp: 201, replay_timestamp: 201, raw_json: JSON.stringify(coreInventoryFixtures.abroadPurchaseMultiple) },
+  { source_log_id: "grenade-box", event_timestamp: 202, replay_timestamp: 202, raw_json: JSON.stringify(coreInventoryFixtures.grenadeBox) },
+  { source_log_id: "stash-box", event_timestamp: 203, replay_timestamp: 203, raw_json: JSON.stringify(coreInventoryFixtures.stashBox) },
+  { source_log_id: "legacy-market-sale", event_timestamp: 204, replay_timestamp: 204, raw_json: JSON.stringify(coreInventoryFixtures.legacyItemMarketSale) },
+  { source_log_id: "market-sale", event_timestamp: 205, replay_timestamp: 205, raw_json: JSON.stringify(coreInventoryFixtures.itemMarketSale) },
+  { source_log_id: "legacy-bazaar-sale", event_timestamp: 206, replay_timestamp: 206, raw_json: JSON.stringify(coreInventoryFixtures.legacyBazaarSale) },
+  { source_log_id: "bazaar-sale", event_timestamp: 207, replay_timestamp: 207, raw_json: JSON.stringify(coreInventoryFixtures.bazaarSale) },
+  { source_log_id: "city-sale", event_timestamp: 208, replay_timestamp: 208, raw_json: JSON.stringify(coreInventoryFixtures.cityShopSale) },
+  { source_log_id: "legacy-transfer", event_timestamp: 209, replay_timestamp: 209, raw_json: JSON.stringify(coreInventoryFixtures.legacyItemReceive) },
+  { source_log_id: "send-transfer", event_timestamp: 210, replay_timestamp: 210, raw_json: JSON.stringify(coreInventoryFixtures.itemSend) },
+  { source_log_id: "receive-transfer", event_timestamp: 211, replay_timestamp: 211, raw_json: JSON.stringify(coreInventoryFixtures.itemReceive) },
 ];
 const purchaseEvents = new MemoryEvents();
 const purchaseReplay = new ReplayService({ rawLogs: new MemoryRawLogs(purchaseRows), events: purchaseEvents, registry: purchaseRegistry, pageSize: 100 });
-assert.equal((await purchaseReplay.replay()).generated, 2, "verified legacy purchases replay into canonical events");
-assert.equal((await purchaseReplay.replay()).generated, 0, "second legacy-purchase replay is idempotent");
-assert.equal(purchaseEvents.events.size, 2);
+assert.equal((await purchaseReplay.replay()).generated, 13, "verified purchases, conversions, sales, and transfers replay into canonical events");
+assert.equal((await purchaseReplay.replay()).generated, 0, "second verified parser replay is idempotent");
+assert.equal(purchaseEvents.events.size, 13);
 console.log("Canonical event and replay deterministic tests passed.");

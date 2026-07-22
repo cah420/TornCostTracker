@@ -24,8 +24,11 @@
 - Temporary developer raw-log JSONL export: read-only filtered/sampled local downloads with redaction and a confirmed full-raw mode; formal backup/restore remains future work.
 - Core inventory canonical coverage: verified observed purchase/reward/find and conservative trade-offer parsers, fixture library, payload signatures, and imported-data coverage diagnostics.
 - Torn Log Type Catalog & Coverage Intelligence: persisted official ID/title reference data, non-destructive catalog diffs, manual relevance metadata, and a catalog/observed/parser coverage roadmap.
+- Read-only Accounting Projection foundation: versioned, deterministic canonical-event interpretation, separate SQLite persistence, rebuild diagnostics, reconciliation, neutral transfer handling, and unresolved trade deferral.
+- Read-only Accounting Ledger foundation: controlled accounts, modular policies, balanced deterministic cash postings, separate transaction/line/run persistence, rebuild reconciliation, deferred allocation visibility, neutral transfers, and unresolved trade records.
 
 ## Future
+- Cost Lot Foundation only after ledger policy diagnostics and correlated trade semantics mature.
 - Cost-basis allocation for unresolved trades.
 - Per-instance equipment details such as UID, weapon/armor stats, bonuses, and equipped state.
 - Purchase history, portfolio growth, and historical reporting views.

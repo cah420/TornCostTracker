@@ -4,6 +4,7 @@ import { dataFor, itemMovements, number, titleFor, typeFor } from "./torn-log-fi
 export const WalletParser = Object.freeze({
   name: "wallet",
   version: "1.0.0",
+  family: "Conversion",
   matches: (log) => typeFor(log) === 2405 && /^item use wallet$/i.test(titleFor(log)),
   parse({ sourceLogId, rawLog }){
     const data = dataFor(rawLog);

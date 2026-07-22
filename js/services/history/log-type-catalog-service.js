@@ -1,7 +1,6 @@
 import { API } from "../../api.js";
 import { LogTypeCatalogRepository } from "../../database/log-type-catalog-repository.js";
 import { RawLogRepository } from "../../database/raw-log-repository.js";
-import { registry as canonicalParserRegistry } from "./canonical-event-service.js";
 
 // This intentionally small, reviewable map is the only classification source.
 // Catalog titles never cause a parser or accounting classification to be inferred.
@@ -12,12 +11,16 @@ export const LOG_TYPE_CLASSIFICATIONS = Object.freeze({
   "1222": { classification: "Ignored", reason: "Bazaar listing lifecycle; not an acquisition." },
   "1223": { classification: "Ignored", reason: "Bazaar listing lifecycle; not an acquisition." },
   "1224": { classification: "Ignored", reason: "Bazaar price edit; not an acquisition." },
-  "1226": { classification: "Ignored", reason: "Bazaar sale; outgoing activity." },
+  "1104": { classification: "Accounting relevant", reason: "Verified legacy Item Market cash-sale shape; parser coverage remains partial until all archived signatures are reviewed." },
+  "1113": { classification: "Accounting relevant", reason: "Verified Item Market cash-sale shape; parser coverage remains partial until all archived signatures are reviewed." },
+  "1221": { classification: "Accounting relevant", reason: "Verified legacy Bazaar cash-sale shape; parser coverage remains partial until all archived signatures are reviewed." },
+  "1226": { classification: "Accounting relevant", reason: "Verified Bazaar cash-sale shape; parser coverage remains partial until all archived signatures are reviewed." },
   "1112": { classification: "Accounting relevant", reason: "Verified Item Market purchase parser." },
   "1220": { classification: "Accounting relevant", reason: "Verified legacy Bazaar purchase shape; parser coverage remains partial until all archived signatures are reviewed." },
   "1225": { classification: "Accounting relevant", reason: "Verified Bazaar purchase parser." },
   "4200": { classification: "Accounting relevant", reason: "City Shop purchase matcher retained pending further verification." },
   "4201": { classification: "Accounting relevant", reason: "Verified Abroad Shop purchase shape; parser coverage remains partial until all archived signatures are reviewed." },
+  "4210": { classification: "Accounting relevant", reason: "Verified Item Shop cash-sale shape; parser coverage remains partial until all archived signatures are reviewed." },
   "4401": { classification: "Accounting relevant", reason: "Trade lifecycle coverage is partial; completion is not inferred." },
   "4420": { classification: "Accounting relevant", reason: "Trade lifecycle coverage is partial; completion is not inferred." },
   "4482": { classification: "Accounting relevant", reason: "Trade counterparty offer coverage is partial; completion is not inferred." },
@@ -27,6 +30,9 @@ export const LOG_TYPE_CLASSIFICATIONS = Object.freeze({
   "9020": { classification: "Accounting relevant", reason: "Verified crime item reward parser." },
   "2405": { classification: "Inventory relevant", reason: "Verified wallet conversion parser." },
   "2340": { classification: "Inventory relevant", reason: "Verified empty blood bag conversion parser." },
+  "2350": { classification: "Inventory relevant", reason: "Verified grenade box conversion shape; parser coverage remains partial until all archived signatures are reviewed." },
+  "2360": { classification: "Inventory relevant", reason: "Verified medical box conversion shape; parser coverage remains partial until all archived signatures are reviewed." },
+  "2407": { classification: "Inventory relevant", reason: "Verified stash box item-to-cash conversion shape; parser coverage remains partial until all archived signatures are reviewed." },
 });
 
 function titleHash(title){
@@ -60,7 +66,7 @@ function observedStatus(group){
 
 /** Joins API catalog reference data with observed archive/parser coverage, without changing either. */
 export class LogTypeCatalogService {
-  constructor({ api = API, catalog = new LogTypeCatalogRepository(), rawLogs = new RawLogRepository(), parserRegistry = canonicalParserRegistry } = {}){
+  constructor({ api = API, catalog = new LogTypeCatalogRepository(), rawLogs = new RawLogRepository(), parserRegistry = { select: () => [] } } = {}){
     this.api = api; this.catalog = catalog; this.rawLogs = rawLogs; this.parserRegistry = parserRegistry;
   }
 
@@ -75,18 +81,25 @@ export class LogTypeCatalogService {
     const rows = await this.rawLogs.parserCoverageRows(); const groups = new Map();
     rows.forEach((row) => {
       const logTypeId = String(row.log_type_id); const group = groups.get(logTypeId) ?? {
-        logTypeId, observedTitle: row.title, firstSeen: row.event_timestamp, lastSeen: row.event_timestamp,
+      logTypeId, observedTitle: row.title, firstSeen: row.event_timestamp, lastSeen: row.event_timestamp,
         observedCount: 0, parserNames: new Set(), supported: 0, partial: 0, unsupported: 0, errors: 0, signatures: new Map(),
       };
       const rawLog = JSON.parse(row.raw_json); const signature = recordSignature(rawLog);
       group.observedCount += 1; group.firstSeen = Math.min(group.firstSeen, row.event_timestamp); group.lastSeen = Math.max(group.lastSeen, row.event_timestamp);
-      group.signatures.set(signature, (group.signatures.get(signature) ?? 0) + 1);
       const parsers = this.parserRegistry.select(rawLog); parsers.forEach((parser) => group.parserNames.add(`${parser.name}@${parser.version}`));
+      let signatureStatus = "unsupported";
       if (!parsers.length) group.unsupported += 1;
       else try {
         parsers.forEach((parser) => parser.parse({ sourceLogId: "coverage", rawLog }));
-        if (parsers.some((parser) => parser.coverageStatus === "partial")) group.partial += 1; else group.supported += 1;
-      } catch (error) { if (error.name === "UnsupportedVariantError") group.unsupported += 1; else group.errors += 1; }
+        if (parsers.some((parser) => parser.coverageStatus === "partial")) { group.partial += 1; signatureStatus = "partial"; } else { group.supported += 1; signatureStatus = "supported"; }
+      } catch (error) { if (error.name === "UnsupportedVariantError") group.unsupported += 1; else { group.errors += 1; signatureStatus = "error"; } }
+      const signatureMetrics = group.signatures.get(signature) ?? { observed: 0, supported: 0, partial: 0, unsupported: 0, errors: 0 };
+      signatureMetrics.observed += 1;
+      if (signatureStatus === "supported") signatureMetrics.supported += 1;
+      else if (signatureStatus === "partial") signatureMetrics.partial += 1;
+      else if (signatureStatus === "error") signatureMetrics.errors += 1;
+      else signatureMetrics.unsupported += 1;
+      group.signatures.set(signature, signatureMetrics);
       groups.set(logTypeId, group);
     });
     return groups;
@@ -123,7 +136,11 @@ export class LogTypeCatalogService {
       classification: metadata.classification, classificationReason: metadata.reason,
       observedCount: group?.observedCount ?? 0, firstSeen: group?.firstSeen ?? null, lastSeen: group?.lastSeen ?? null,
       parser: group ? [...group.parserNames].join(", ") || null : null,
-      payloadSignatures: group ? [...group.signatures.entries()].map(([signature, count]) => `${signature} (${count})`).join(" | ") : "none",
+      payloadSignatures: group ? [...group.signatures.entries()].map(([signature, metrics]) => `${signature} (${metrics.observed})`).join(" | ") : "none",
+      observedSignatures: group ? group.signatures.size : 0,
+      supportedSignatures: group ? [...group.signatures.values()].filter((metrics) => metrics.supported > 0 && !metrics.partial && !metrics.unsupported && !metrics.errors).length : 0,
+      partialSignatures: group ? [...group.signatures.values()].filter((metrics) => metrics.partial > 0).length : 0,
+      unsupportedSignatures: group ? [...group.signatures.values()].filter((metrics) => metrics.unsupported > 0 || metrics.errors > 0).length : 0,
     };
   }
 }

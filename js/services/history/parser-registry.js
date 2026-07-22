@@ -11,7 +11,7 @@ export class ParserRegistry {
     return parser;
   }
   select(rawLog){ return this.parsers.filter((parser) => parser.matches(rawLog)); }
-  list(){ return this.parsers.map(({ name, version }) => ({ name, version })); }
+  list(){ return this.parsers.map(({ name, version, family = "Unclassified" }) => ({ name, version, family })); }
 }
 
 export const RawLogProcessorContract = Object.freeze({

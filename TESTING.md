@@ -1,5 +1,11 @@
 # Manual verification
 
+## Accounting Ledger Foundation (Sprint 11.1)
+
+- Run `node js/services/history/accounting-ledger.test.mjs` for controlled account catalog, deterministic IDs/order, paid posting balance, deferred multi-item allocation, non-cash reward, neutral transfer, unresolved trade, UID preservation, and malformed-money ledger-error coverage.
+- Run `node js/services/history/accounting-ledger-service.test.mjs` for paged rebuild, reconciliation, and a repeat rebuild that inserts no duplicate transactions or lines.
+- In a secure OPFS-capable browser with archived projections, use **Settings -> Accounting Ledger -> Rebuild Accounting Ledger** twice. Confirm the second run reports zero new records, every source projection has one ledger disposition, all posted entries balance, global debits equal credits, trades remain unresolved, and no active Purchases/inventory/FIFO values change.
+
 ## SQLite migration foundation
 
 - Run `node --experimental-default-type=module js/database/migration-runner.test.mjs`: verify numbered migrations apply once in ascending order and are repeatable.
@@ -25,6 +31,28 @@
 - In Settings → Canonical Event Diagnostics, select **Refresh Coverage**. Confirm counts are labeled as imported-data coverage only, and that unknown types remain Unsupported.
 - Replay the archive after importing new logs. Confirm canonical event changes do not alter Items, Purchases, FIFO, conversion history, or cost basis.
 
+## Canonical Transfer Events (Sprint 10.9)
+
+- Run `node --experimental-default-type=module js/services/history/core-inventory-parsers.test.mjs` and `node --experimental-default-type=module js/services/history/canonical-event.test.mjs` for verified send/receive/legacy-receive shapes, UIDs, participants, quantities, unsupported variants, and replay idempotency.
+- Replay verified `4101`, `4102`, and `4103` records. Confirm each creates one `transfer` event with no cash movement: `4101` and `4103` use item `in`, while `4102` uses item `out`.
+- Confirm the source sender or receiver is preserved as the only known counterparty. Do not expect an inferred local participant, purchase, sale, reward, trade completion, FIFO lot, or cost-basis change.
+- Confirm payload signatures other than `item,message,quantity,sender`, `items,message,receiver`, and `items,message,sender` become unsupported rather than being guessed.
+
+## Legacy Item Market Purchase Coverage (Sprint 10.10)
+
+- Run `node --experimental-default-type=module js/services/history/legacy-item-market-profile-service.test.mjs`, `js/services/history/core-inventory-parsers.test.mjs`, and `js/services/history/canonical-event.test.mjs`.
+- In Settings, use **Refresh Project Health**. Confirm the Legacy Item Market Purchase (1103) section reports total archived, accepted, rejected, record coverage, parser status, signature counts, row/UID anomalies, seller/cost diagnostics, and grouped rejection reasons without displaying raw values or participant identifiers.
+- Replay verified 1103 records: confirm one `acquisition` event with item `in`, cash `out`, seller participant, preserved UID, and `single_item_transaction_total` cost interpretation. Confirm no purchase, FIFO, lot, valuation, or current-accounting side effects.
+- Confirm missing/zero/invalid cost, missing seller, empty or malformed item arrays, invalid IDs, non-unit quantities, and multi-row item arrays remain unsupported with no partial event emission.
+
+## Read-Only Accounting Projection Foundation (Sprint 11)
+
+- Run `node --experimental-default-type=module js/database/migrations/accounting-projection.test.mjs`, `js/services/history/accounting-projection.test.mjs`, and `js/services/history/accounting-projection-service.test.mjs`.
+- In Settings, select **Run / Rebuild Projection**. Confirm progress reports canonical events examined, projectable, unresolved, and error counts. A completed run may have unresolved trade events but must reconcile all examined events.
+- Run it again without canonical changes. Confirm no duplicate projection rows are inserted and existing deterministic rows are reported instead.
+- Confirm acquisitions/disposals retain verified item/cash directions, conversions retain both sides without basis allocation, rewards do not receive invented value, transfers remain neutral, and trade events remain unresolved.
+- Confirm Items, Purchases, FIFO, Cost Lots, valuation, canonical diagnostics, and raw-log totals are unchanged.
+
 ## Torn Log Type Catalog & Coverage Intelligence (Sprint 10.5)
 
 - In Settings, select **Refresh Torn Catalog** and confirm the catalog summary reports total, new, renamed, and inactive counts. Repeat the refresh without a Torn change and confirm no entries are reported as new or renamed.
@@ -39,6 +67,29 @@
 - Replay verified 1220 and 4201 records: confirm each creates one `acquisition` event with item `in` and cash `out` movements; confirm 1220 retains a seller participant and 4201 stores numeric `attributes.location.area`.
 - Confirm missing/invalid item, quantity, cost fields, area (4201), and materially inconsistent unit/total consideration are recorded as unsupported, not as zero-cost acquisitions.
 - Run a second replay and confirm the same parser version creates no duplicate canonical events. Confirm Purchases, FIFO lots, conversions, and cost basis remain unchanged.
+
+## Verified Item Conversion Framework (Sprint 10.7)
+
+- Run `node --experimental-default-type=module js/services/history/parsers/item-conversion-parser.test.mjs`, `node --experimental-default-type=module js/services/history/core-inventory-parsers.test.mjs`, and `node --experimental-default-type=module js/services/history/canonical-event.test.mjs`.
+- Replay 2350/2360 records: confirm one consumed item uses an `out` movement and the explicit `item2` output uses an `in` movement with the recorded quantity. Confirm the declared `quantity` agrees with the output quantity.
+- Replay 2407: confirm one consumed item and one nonnegative cash `in` movement; do not expect profit, lots, FIFO, or purchase-history changes.
+- Confirm missing/invalid inputs, missing/invalid output quantities, mismatched declared quantities, duplicate outputs, unsupported structures, and invalid cash become unsupported replay results.
+- Run a second replay and confirm no duplicate canonical events are stored.
+
+## Canonical Cash-Sale Events (Sprint 10.8)
+
+- Run `node --experimental-default-type=module js/services/history/parsers/cash-sale-parser.test.mjs`, `node --experimental-default-type=module js/services/history/core-inventory-parsers.test.mjs`, and `node --experimental-default-type=module js/services/history/canonical-event.test.mjs`.
+- Replay 1104, 1113, 1221, 1226, and 4210 records: confirm one `disposal` event per record, item `out`, cash `in`, recorded total proceeds, and no accounting side effects.
+- Confirm 1104 preserves a valid UID and buyer; 1113 preserves nullable `cost_each`, `fee`, and `anonymous` source fields without using them for net-proceeds math; 1221/1226/4210 reject inconsistent unit and total proceeds.
+- Confirm malformed items, invalid quantities, missing/negative proceeds, invalid buyers where required, duplicate item lines, unsupported legacy quantities, and unsupported Item Shop area variants are durable unsupported results.
+- Run a second replay and confirm it creates zero additional canonical events.
+
+## Coverage Intelligence (Sprint 10.8.5)
+
+- Run `node --experimental-default-type=module js/services/history/coverage-intelligence-service.test.mjs`, `node --experimental-default-type=module js/database/coverage-snapshot-repository.test.mjs`, and `node --experimental-default-type=module js/database/migrations/coverage-intelligence.test.mjs`.
+- In Settings, refresh **Project Health**. Confirm Archive, Warehouse, Replay, Coverage, signature, parser-family, highest-impact, and latest replay metrics are diagnostic only; Items, Purchases, FIFO, and cost basis must not change.
+- Replay archived logs, then refresh Project Health. Confirm a compact coverage snapshot is available and a second replay creates no duplicate canonical events.
+- Export representative raw logs and confirm export metadata includes per-type observed-record/signature counts, parser status/family, representative signatures, export timestamp, and exported-example count without increasing the number of raw examples.
 
 ## Temporary raw-log developer export
 

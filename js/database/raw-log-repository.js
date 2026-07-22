@@ -154,6 +154,18 @@ export class RawLogRepository {
       ORDER BY COALESCE(event_timestamp, 0) ASC, source_log_id ASC LIMIT ?`, bind);
   }
 
+  async pageByLogType(logTypeId, { timestamp = null, sourceLogId = null, limit = 500 } = {}){
+    const bind = [String(logTypeId)];
+    let where = "WHERE log_type_id = ?";
+    if (timestamp !== null) {
+      where += " AND (COALESCE(event_timestamp, 0) > ? OR (COALESCE(event_timestamp, 0) = ? AND source_log_id > ?))";
+      bind.push(timestamp, timestamp, sourceLogId ?? "");
+    }
+    bind.push(Math.max(1, Math.min(Number(limit) || 500, 500)));
+    return this.database.query(`SELECT source_log_id, event_timestamp, raw_json, COALESCE(event_timestamp, 0) AS profile_timestamp FROM raw_logs ${where}
+      ORDER BY COALESCE(event_timestamp, 0) ASC, source_log_id ASC LIMIT ?`, bind);
+  }
+
   async countForExport(filters){
     const { where, bind } = exportWhere(filters);
     const [row] = await this.database.query(`SELECT COUNT(*) AS count FROM raw_logs r ${where}`, bind);

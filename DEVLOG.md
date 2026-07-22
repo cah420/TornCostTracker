@@ -1,5 +1,47 @@
 # Development Log
 
+## Sprint 11.1 - Read-Only Accounting Ledger Foundation
+
+Accounting Ledger is a second, independent derived SQLite layer: `Raw Log -> Canonical Event -> Accounting Projection -> Accounting Ledger -> Future Cost Lots / FIFO -> Future Valuation`. Ledger v1 reads stored projection records in bounded pages only. It never reads raw payloads, changes canonical/projection rows, or becomes authoritative for Purchases, inventory, FIFO, existing LocalStorage lots, valuation, or profit/loss.
+
+The controlled account catalog and ordered policy registry produce one deterministic transaction per projection (`ledger version + projection ID + policy code`) and deterministic line IDs. Posted cash transactions use integer double-entry lines and must balance individually; global posted debits and credits are reconciled after each rebuild. Multi-item consideration remains transaction-level and allocation-deferred, non-cash rewards preserve quantity without invented value, conversions preserve all observed sides without basis allocation, transfers are memorandum-only, and trades remain unresolved with `trade_correlation_required`. Rebuilding the same ledger version upserts the same records instead of duplicating them. The Settings ledger panel and Project Health report the run, storage, balance, reconciliation, deferred, and unresolved diagnostics.
+
+## Sprint 11 - Read-Only Accounting Projection Foundation
+
+Accounting Projection is a rebuildable SQLite-derived interpretation layer between canonical events and future ledger work: `Raw Log → Canonical Event → Accounting Projection → Future Ledger → Future Cost Lots / FIFO`. Projection rows are deterministic (`projection version + canonical event ID`), persisted separately, and never modify raw logs, canonical events, LocalStorage purchases, inventory, FIFO, cost lots, or valuation.
+
+Version 1 classifies verified paid acquisitions/disposals and structurally complete conversions as projectable; item rewards as non-cash rewards; cash-only rewards separately; ordinary transfers as neutral; and all current trade-parser events as explicitly unresolved with `trade_correlation_required`. Projection errors remain visible and retain a reason. Unknown basis, deferred allocation, and known no-cash consideration are distinct states; no value is invented. Rebuilds page canonical records, upsert deterministic rows, track existing rows on a second pass, and reconcile every examined event to exactly one outcome.
+
+## Sprint 10.10 - Legacy Item Market Purchase Coverage
+
+Legacy Item Market buy (`1103`) now has a deliberately narrow canonical acquisition contract based on the supplied historical shape: top-level `cost,item,seller`, an explicit non-empty `item` array containing exactly one positive-quantity row, and a valid seller. The parser accepts quantity one only. In that restricted shape, `cost` is safely recorded as total transaction consideration and, because there is exactly one unit, also as unit cost. The item becomes an `in` movement, cash becomes an `out` movement, and an item UID is preserved where supplied.
+
+`LegacyItemMarketProfileService` scans the complete local 1103 population in bounded SQLite pages and returns aggregate-only diagnostics: timestamps, field/nested-row signatures, row counts, quantity/UID/duplicate conditions, seller and cost shapes, malformed structures, parser acceptance, and grouped rejection reasons. It intentionally exposes no raw identities or item values. Multi-row or quantity-greater-than-one records are rejected rather than receiving a guessed allocation of `cost`; the live Project Health refresh reports the exact accepted/rejected result for the current archive. No current accounting path consumes these events.
+
+## Sprint 10.9 - Canonical Transfer Events
+
+The canonical event layer now has a strict reusable Transfer parser factory for objective player-to-player item movement. The verified archive signatures are: `4101 Item receive (legacy)` with `item,message,quantity,sender`; `4102 Item send` with `items,message,receiver`; and `4103 Item receive` with `items,message,sender`. The legacy receive shape is a positive scalar item plus quantity, current receives are numeric item-to-quantity maps, and sends are explicit item-line arrays with optional UIDs.
+
+Each valid source record emits one generic `transfer` event. Its item movements are `in` for receives and `out` for sends, relative to the logged-in account; the raw sender or receiver becomes the sole known counterparty. The parser deliberately does not fabricate the absent local participant, retain private messages, add a cash movement, or make any acquisition, disposal, trade, valuation, FIFO, or accounting inference. Unknown field signatures, malformed parties/items/quantities, duplicate item lines, and unverified structures remain durable unsupported replay results. Because Transfer is parser metadata, Project Health and Coverage Intelligence include its counts automatically.
+
+## Sprint 10.8.5 - Coverage Intelligence
+
+Coverage diagnostics are now a dedicated read-only intelligence layer. It aggregates observed raw-log types, records, top-level payload signatures, parser status, registered parser family metadata, canonical-event totals, import health, and the highest-impact non-fully-supported types. Supported record/signature totals include fully and partially parsed observations; fully supported values remain separate so partial coverage is never presented as complete.
+
+Successful canonical replay records one compact `coverage_snapshots` row containing only aggregate metrics and replay result fields—never raw logs or canonical payloads. Project Health derives warnings only from meaningful conditions such as archive conflicts, failed/paused imports, parser errors, unsupported signatures, or supported-record regression against the prior snapshot. The Settings developer panel and raw JSONL export consume these diagnostics without changing replay output or accounting.
+
+## Sprint 10.8 - Canonical Cash-Sale Events
+
+Canonical disposal support now has its own strict, configured cash-sale factory rather than reversing purchase logic. Each verified record produces one `disposal` event with item `out` and cash `in` movements. The factory requires positive item quantities, nonnegative finite proceeds, valid required buyers, and consistent unit/total values whenever both are usable. It preserves a verified item UID in movement attributes, a buyer participant when the source supplies one, and configured source fields without using them to derive net proceeds, fees, or profit.
+
+The first partial configurations are 1104 legacy Item Market sell, 1113 Item Market sell, 1221 legacy Bazaar sell, 1226 Bazaar sell, and 4210 Item Shop sell. `1104` is intentionally limited to the verified one-unit `cost` shape, so `cost` is treated as total proceeds only for that shape. `1113` preserves `cost_total` while its observed nullable `cost_each` remains null rather than being invented. 1221, 1226, and 4210 verify the explicit unit-price × quantity = total-proceeds relation. All five remain partial because representative exports do not establish every archived signature. No accounting path consumes these events.
+
+## Sprint 10.7 - Verified Item Conversion Framework
+
+Canonical conversion parsing now has a reusable strict factory instead of three mechanic-specific event builders. It accepts only verified scalar item IDs, arrays with explicit item quantities, or numeric quantity object maps; preserves a supplied UID in movement attributes when present; rejects malformed values and duplicate item outputs; and constructs one generic `conversion` event with `out` input and `in` output movements. Cash is represented by the existing generic cash movement model, never as profit or cost basis.
+
+The first configurations cover `2350` Item use box of grenades, `2360` Item use box of medical supplies, and `2407` Item use stash box. The box shapes require one scalar input item, one explicit-quantity `item2` output, and a matching declared `quantity`; the stash-box shape requires one scalar input item and nonnegative `money` output. All three remain partial coverage because representative exports cannot prove complete archive-signature coverage. Raw evidence, replay infrastructure, and every accounting path remain unchanged.
+
 ## Sprint 10.6 - Legacy Bazaar & Abroad Purchase Canonical Events
 
 The canonical purchase family now covers the verified legacy Bazaar buy (`1220`) and Abroad buy (`4201`) payloads without touching purchase synchronization, lots, FIFO, conversions, or cost basis. Both source shapes are strict scalar purchases: positive numeric `item` and `quantity`, nonnegative numeric `cost_each` and `cost_total`, and a materially consistent unit-times-quantity total are required. Valid records produce one generic acquisition event with item-in and cash-out movements. Legacy Bazaar preserves an optional seller participant; Abroad preserves `area` under generic `attributes.location` rather than translating it into a country-specific schema.

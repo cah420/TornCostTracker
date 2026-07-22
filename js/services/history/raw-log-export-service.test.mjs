@@ -22,10 +22,14 @@ const filters = validateExportFilters({ logTypeIds: "2405, 2340", category: "Ite
 assert.deepEqual(filters.logTypeIds, ["2405", "2340"]);
 assert.throws(() => validateExportFilters({ fromTimestamp: 2, toTimestamp: 1 }), /From date/);
 const repository = new MemoryRepository();
-const exporter = new RawLogExportService({ repository, pageSize: 1 });
+const coverageProvider = { async dashboard(){ return { signatures: [{ logTypeId: "2405", observedCount: 1, observedSignatures: 1, status: "Supported", family: "Conversion", payloadSignatures: "item,quantity (1)" }] }; } };
+const exporter = new RawLogExportService({ repository, coverageProvider, pageSize: 1 });
 const result = await exporter.export({ filters, redactionMode: "redacted" });
 const lines = (await result.blob.text()).trim().split("\n").map(JSON.parse);
 assert.equal(lines[0]._recordType, "export_metadata");
+assert.equal(lines[0].coverageByLogType["2405"].observedRecordCount, 1);
+assert.equal(lines[0].coverageByLogType["2405"].exportedExampleCount, 1);
+assert.equal(lines[0].coverageByLogType["2405"].exportTimestamp, lines[0].createdAt);
 assert.equal(lines.length, 3, "metadata plus maximum filtered records");
 assert.equal(lines[1].sourceLogId, "a", "ordering is deterministic");
 assert.equal(lines[1].raw.data.item, 1, "mechanic item IDs remain intact");

@@ -14,7 +14,10 @@ import { DatabaseDiagnostics } from "../database/database-diagnostics.js";
 import { RawLogs } from "../services/raw-log-import-service.js";
 import { CanonicalEvents } from "../services/history/canonical-event-service.js";
 import { LogTypeCatalog } from "../services/history/log-type-catalog-service.js";
+import { CoverageIntelligence } from "../services/history/coverage-intelligence-service.js";
 import { RawLogExporter, validateExportFilters } from "../services/history/raw-log-export-service.js";
+import { AccountingProjection } from "../services/history/accounting-projection-service.js";
+import { AccountingLedger } from "../services/history/accounting-ledger-service.js";
 
 function formatArchiveTime(timestamp){
   return timestamp ? new Date(Number(timestamp) * 1000).toLocaleString() : "Not archived yet";
@@ -103,6 +106,31 @@ export default {
         </div>
       </section>
       <section class="settings-raw-log-archive">
+        <h3>Accounting Projection</h3>
+        <p>Rebuildable developer diagnostics derived only from canonical events. This does not change Purchases, FIFO, cost lots, valuation, inventory, raw logs, or canonical events.</p>
+        <div id="accountingProjectionStatus" class="settings-archive-status" aria-live="polite">Checking accounting projection...</div>
+        <div class="settings-archive-actions">
+          <button id="rebuildAccountingProjectionBtn" class="api-key-save" type="button">Run / Rebuild Projection</button>
+          <button id="refreshAccountingProjectionBtn" type="button">Refresh Projection Diagnostics</button>
+        </div>
+      </section>
+      <section class="settings-raw-log-archive">
+        <h3>Accounting Ledger</h3>
+        <p>Rebuildable, read-only double-entry diagnostics derived only from Accounting Projection. It does not change Purchases, inventory, FIFO, cost lots, valuation, canonical events, or raw logs.</p>
+        <div id="accountingLedgerStatus" class="settings-archive-status" aria-live="polite">Checking accounting ledger...</div>
+        <div class="settings-archive-actions">
+          <button id="rebuildAccountingLedgerBtn" class="api-key-save" type="button">Rebuild Accounting Ledger</button>
+          <button id="refreshAccountingLedgerBtn" type="button">Refresh Ledger Diagnostics</button>
+        </div>
+      </section>
+      <section class="settings-raw-log-archive">
+        <h3>Project Health &amp; Coverage Intelligence</h3>
+        <p>Read-only archive, parser, replay, signature, and canonical-event measurements. These metrics guide parser work and never alter raw logs or accounting.</p>
+        <div id="coverageIntelligenceStatus" class="settings-archive-status" aria-live="polite">Calculating project health...</div>
+        <div class="settings-archive-actions"><button id="refreshCoverageIntelligenceBtn" type="button">Refresh Project Health</button></div>
+        <div id="coverageIntelligenceRows" class="settings-catalog-results" aria-live="polite"></div>
+      </section>
+      <section class="settings-raw-log-archive">
         <h3>Torn Log Type Catalog &amp; Coverage</h3>
         <p>Reference catalog data from Torn is compared with locally archived logs and registered parsers. This is diagnostic-only: it does not create accounting entries or alter raw logs.</p>
         <div id="logTypeCatalogStatus" class="settings-archive-status" aria-live="polite">Checking local catalog coverage...</div>
@@ -143,6 +171,15 @@ export default {
     const replayCanonicalEventsButton = document.getElementById("replayCanonicalEventsBtn");
     const refreshCanonicalEventsButton = document.getElementById("refreshCanonicalEventsBtn");
     const coverageCanonicalEventsButton = document.getElementById("coverageCanonicalEventsBtn");
+    const accountingProjectionStatus = document.getElementById("accountingProjectionStatus");
+    const rebuildAccountingProjectionButton = document.getElementById("rebuildAccountingProjectionBtn");
+    const refreshAccountingProjectionButton = document.getElementById("refreshAccountingProjectionBtn");
+    const accountingLedgerStatus = document.getElementById("accountingLedgerStatus");
+    const rebuildAccountingLedgerButton = document.getElementById("rebuildAccountingLedgerBtn");
+    const refreshAccountingLedgerButton = document.getElementById("refreshAccountingLedgerBtn");
+    const coverageIntelligenceStatus = document.getElementById("coverageIntelligenceStatus");
+    const coverageIntelligenceRows = document.getElementById("coverageIntelligenceRows");
+    const refreshCoverageIntelligenceButton = document.getElementById("refreshCoverageIntelligenceBtn");
     const logTypeCatalogStatus = document.getElementById("logTypeCatalogStatus");
     const logTypeCatalogRows = document.getElementById("logTypeCatalogRows");
     const refreshLogTypeCatalogButton = document.getElementById("refreshLogTypeCatalogBtn");
@@ -200,6 +237,34 @@ Replay status: ${info.replayRunning ? "Running" : "Idle"}`;
       if (!database.available) return;
       const coverage = await CanonicalEvents.coverage();
       canonicalStatus.textContent = `Coverage of imported data only: ${coverage.supported}/${coverage.rows.length} supported (${coverage.percentage}%) · ${coverage.partial} partially supported · ${coverage.unsupported} unsupported\n${coverage.rows.map((row) => `${row.logTypeId} — ${row.title}: ${row.status}${row.parser ? ` (${row.parser})` : ""} · fields: ${row.payloadSignature}`).join("\n")}`;
+    };
+    const refreshAccountingProjection = async () => {
+      const database = await Database.initialize();
+      if (!database.available) { accountingProjectionStatus.textContent = "Accounting Projection requires the available local SQLite archive."; rebuildAccountingProjectionButton.disabled = true; return; }
+      const diagnostics = await AccountingProjection.diagnostics(); const metrics = diagnostics.metrics;
+      accountingProjectionStatus.textContent = `Health: ${diagnostics.health} · Projection version: ${diagnostics.projectionVersion}\nLatest run: ${diagnostics.latestRun ? `${diagnostics.latestRun.status} · ${metrics.canonicalEventsExamined} canonical events examined · ${metrics.durationMilliseconds}ms` : "Not run"}\nOutcomes: ${metrics.projectable} projectable · ${metrics.neutral} neutral · ${metrics.unresolved} unresolved · ${metrics.ignored} ignored · ${metrics.projectionErrors} errors\nCoverage: classification ${metrics.classificationCoveragePercent}% · safely projectable ${metrics.safelyProjectableCoveragePercent}% · accounting-ready ${metrics.accountingReadyCoveragePercent}%\nStored rows: ${diagnostics.storedProjectionRows} · Unprojected: ${metrics.unprojectedCanonicalEvents} · Reconciliation: ${metrics.reconciliationBalanced ? "balanced" : "not established"}\nClassifications: ${Object.entries(metrics.byClassification ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nUnresolved diagnostics: ${diagnostics.unresolved.length} · Projection errors: ${diagnostics.errors.length}`;
+      rebuildAccountingProjectionButton.disabled = AccountingProjection.running;
+    };
+    const refreshAccountingLedger = async () => {
+      const database = await Database.initialize();
+      if (!database.available) { accountingLedgerStatus.textContent = "Accounting Ledger requires the available local SQLite archive."; rebuildAccountingLedgerButton.disabled = true; return null; }
+      const diagnostics = await AccountingLedger.diagnostics(); const metrics = diagnostics.metrics;
+      accountingLedgerStatus.textContent = `Health: ${diagnostics.health} · Ledger version: ${diagnostics.ledgerVersion} · Source projection version: ${diagnostics.projectionVersion}\nLatest run: ${diagnostics.latestRun ? `${diagnostics.latestRun.status} · ${metrics.projectionsExamined} projections examined · ${metrics.durationMilliseconds}ms` : "Not run"}\nDisposition: ${metrics.posted} posted · ${metrics.memorandum} memorandum · ${metrics.deferred} deferred · ${metrics.unresolved} unresolved · ${metrics.ledgerErrors} errors\nStorage: ${diagnostics.stored.transactions} transactions · ${diagnostics.stored.lines} lines · ${diagnostics.accounts.length} controlled accounts\nBalancing: ${metrics.balancedTransactions} balanced · ${metrics.unbalancedTransactions} unbalanced · debits ${metrics.totalDebits} · credits ${metrics.totalCredits}\nReconciliation: ${metrics.reconciliationBalanced ? "balanced" : "not established"} · Posted monetary coverage ${metrics.postedMonetaryCoveragePercent}% · Deferred allocation ${metrics.deferredAllocationPercent}%\nAccount balances: ${diagnostics.accountBalances.map((row) => `${row.accountCode} D${row.debits}/C${row.credits}`).join(" · ") || "No posted monetary balances"}\nDeferred: ${Object.entries(metrics.deferredReasons ?? {}).map(([reason, count]) => `${reason} ${count}`).join(" · ") || "None"}\nUnresolved: ${Object.entries(metrics.unresolvedReasons ?? {}).map(([reason, count]) => `${reason} ${count}`).join(" · ") || "None"}`;
+      rebuildAccountingLedgerButton.disabled = AccountingLedger.running;
+      return diagnostics;
+    };
+    const refreshCoverageIntelligence = async () => {
+      const database = await Database.initialize();
+      if (!database.available) { coverageIntelligenceStatus.textContent = "Project Health requires the available local SQLite archive."; refreshCoverageIntelligenceButton.disabled = true; return; }
+      const dashboard = await CoverageIntelligence.dashboard({ includeLegacyItemMarketProfile: true }); const metrics = dashboard.metrics;
+      const ledger = await AccountingLedger.diagnostics();
+      coverageIntelligenceStatus.textContent = `Health: Archive ${dashboard.health.archiveIntegrity} · Warehouse ${dashboard.health.rawWarehouse} · Replay ${dashboard.health.replay} · Coverage ${dashboard.health.coverage} · Ledger ${ledger.health}`;
+      const replay = dashboard.latestSnapshot?.replay;
+      coverageIntelligenceRows.textContent = `Archive Overview\nObserved types: ${metrics.observedTypes} · Records: ${metrics.observedRecords} · Signatures: ${metrics.observedSignatures}\nFully supported: ${metrics.fullySupportedTypes} types / ${metrics.fullySupportedRecords} records\nPartial: ${metrics.partiallySupportedTypes} types / ${metrics.partiallySupportedRecords} records\nUnsupported: ${metrics.unsupportedTypes} types / ${metrics.unsupportedRecords} records\nSignature coverage: ${metrics.supportedSignatures}/${metrics.observedSignatures} parsed · ${metrics.unsupportedSignatures} unsupported\nCanonical events: ${metrics.canonicalEvents} across ${metrics.canonicalEventTypes} event types · Registered parsers: ${metrics.parserCount}\nLatest replay: ${replay ? `${replay.replayed} read · ${replay.generated} generated · ${replay.unsupported} unsupported · ${replay.errors} errors · ${replay.durationMilliseconds ?? "—"}ms` : "No coverage snapshot yet"}\n\nParser Families\n${dashboard.families.map((family) => `${family.family}: ${family.parserCount} parsers · ${family.observedTypes} types · ${family.observedRecords} records (${family.coveragePercent}% of archive)`).join("\n") || "No registered parser families."}\n\nHighest Impact Unsupported / Partial Types\n${dashboard.highestImpactUnsupported.map((row) => `${row.logTypeId} — ${row.title}: ${row.status} · ${row.observedCount} records · ${row.observedSignatures} signatures · ${row.family}`).join("\n") || "No unsupported observed types."}`;
+      const legacyItemMarket = dashboard.legacyItemMarket;
+      if (legacyItemMarket) coverageIntelligenceRows.textContent += `\n\nLegacy Item Market Purchase (1103)\nArchived: ${legacyItemMarket.totalRecords} · Accepted: ${legacyItemMarket.acceptedRecords} · Rejected: ${legacyItemMarket.rejectedRecords} · Coverage: ${legacyItemMarket.recordCoveragePercent}%\nStatus: ${legacyItemMarket.parserStatus} · Canonical events stored: ${legacyItemMarket.generatedCanonicalEvents}\nSignatures accepted/rejected: ${legacyItemMarket.acceptedSignatures.length}/${legacyItemMarket.rejectedSignatures.length} · Item rows: ${legacyItemMarket.minimumItemRows ?? "—"}-${legacyItemMarket.maximumItemRows}\nUnusual records: multiple rows ${legacyItemMarket.recordsWithMultipleItemRows} · quantity > 1 rows ${legacyItemMarket.rowsWithQuantityGreaterThanOne} · duplicate item IDs ${legacyItemMarket.recordsWithDuplicateItemIds} · duplicate UIDs ${legacyItemMarket.recordsWithDuplicateUids}\nCost: ${legacyItemMarket.minimumCost ?? "—"}-${legacyItemMarket.maximumCost ?? "—"} · invalid ${legacyItemMarket.invalidCost} · Seller missing/null: ${legacyItemMarket.sellerMissing}/${legacyItemMarket.sellerNull}${legacyItemMarket.rejectionReasons.length ? `\nRejected reasons: ${legacyItemMarket.rejectionReasons.map((reason) => `${reason.value} (${reason.count})`).join(" · ")}` : ""}`;
+      coverageIntelligenceRows.textContent += `\n\nAccounting Ledger\nHealth: ${ledger.health} · Ledger v${ledger.ledgerVersion} over Projection v${ledger.projectionVersion}\nStored: ${ledger.stored.transactions} transactions · ${ledger.stored.lines} lines · ${ledger.accounts.length} controlled accounts\nLatest reconciliation: ${ledger.metrics.reconciliationBalanced ? "balanced" : "not established"} · Posted ${ledger.metrics.posted} · Deferred ${ledger.metrics.deferred} · Unresolved ${ledger.metrics.unresolved} · Errors ${ledger.metrics.ledgerErrors}`;
+      refreshCoverageIntelligenceButton.disabled = false;
     };
     const refreshLogTypeCoverage = async () => {
       const database = await Database.initialize();
@@ -278,6 +343,17 @@ Replay status: ${info.replayRunning ? "Running" : "Idle"}`;
     });
     refreshCanonicalEventsButton.addEventListener("click", () => void refreshCanonicalEvents());
     coverageCanonicalEventsButton.addEventListener("click", () => void refreshCoverage().catch((error) => { canonicalStatus.textContent = `Coverage diagnostics failed: ${error.message}`; }));
+    rebuildAccountingProjectionButton.addEventListener("click", () => {
+      rebuildAccountingProjectionButton.disabled = true; accountingProjectionStatus.textContent = "Accounting Projection rebuild preparing...";
+      void AccountingProjection.rebuild({ onProgress: (update) => { accountingProjectionStatus.textContent = `Accounting Projection ${update.status}: ${update.canonicalEventsExamined ?? 0} canonical events examined · ${update.projectable ?? 0} projectable · ${update.unresolved ?? 0} unresolved · ${update.projectionErrors ?? 0} errors`; } }).catch((error) => { accountingProjectionStatus.textContent = `Accounting Projection failed: ${error.message}`; }).finally(() => void refreshAccountingProjection());
+    });
+    refreshAccountingProjectionButton.addEventListener("click", () => void refreshAccountingProjection().catch((error) => { accountingProjectionStatus.textContent = `Accounting Projection unavailable: ${error.message}`; }));
+    rebuildAccountingLedgerButton.addEventListener("click", () => {
+      rebuildAccountingLedgerButton.disabled = true; accountingLedgerStatus.textContent = "Accounting Ledger rebuild preparing...";
+      void AccountingLedger.rebuild({ onProgress: (update) => { accountingLedgerStatus.textContent = `Accounting Ledger ${update.status}: ${update.projectionsExamined ?? 0} projections · ${update.posted ?? 0} posted · ${update.deferred ?? 0} deferred · ${update.unresolved ?? 0} unresolved · ${update.ledgerErrors ?? 0} errors`; } }).catch((error) => { accountingLedgerStatus.textContent = `Accounting Ledger failed: ${error.message}`; }).finally(() => void refreshAccountingLedger());
+    });
+    refreshAccountingLedgerButton.addEventListener("click", () => void refreshAccountingLedger().catch((error) => { accountingLedgerStatus.textContent = `Accounting Ledger unavailable: ${error.message}`; }));
+    refreshCoverageIntelligenceButton.addEventListener("click", () => void refreshCoverageIntelligence().catch((error) => { coverageIntelligenceStatus.textContent = `Project Health unavailable: ${error.message}`; }));
     refreshLogTypeCatalogButton.addEventListener("click", () => void refreshTornLogTypeCatalog());
     refreshLogTypeCoverageButton.addEventListener("click", () => void refreshLogTypeCoverage().catch((error) => { logTypeCatalogStatus.textContent = `Coverage diagnostics failed: ${error.message}`; }));
     logTypeCatalogSearch.addEventListener("input", () => void refreshLogTypeCoverage().catch(() => {}));
@@ -312,6 +388,9 @@ Replay status: ${info.replayRunning ? "Running" : "Idle"}`;
     Events.on("rawLogExportProgress", exportProgressListener);
     void refreshArchive().catch((error) => { archiveStatus.textContent = `SQLite archive unavailable: ${error.message}`; setArchiveControls(false, false); });
     void refreshCanonicalEvents().catch((error) => { canonicalStatus.textContent = `Canonical diagnostics unavailable: ${error.message}`; replayCanonicalEventsButton.disabled = true; });
+    void refreshAccountingProjection().catch((error) => { accountingProjectionStatus.textContent = `Accounting Projection unavailable: ${error.message}`; rebuildAccountingProjectionButton.disabled = true; });
+    void refreshAccountingLedger().catch((error) => { accountingLedgerStatus.textContent = `Accounting Ledger unavailable: ${error.message}`; rebuildAccountingLedgerButton.disabled = true; });
+    void refreshCoverageIntelligence().catch((error) => { coverageIntelligenceStatus.textContent = `Project Health unavailable: ${error.message}`; });
     void refreshLogTypeCoverage().catch((error) => { logTypeCatalogStatus.textContent = `Catalog coverage unavailable: ${error.message}`; });
     void refreshExport().catch((error) => { exportStatus.textContent = `Export unavailable: ${error.message}`; exportButton.disabled = true; });
 

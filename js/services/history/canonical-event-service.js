@@ -6,11 +6,15 @@ import { ReplayService } from "./replay-service.js";
 import { WalletParser } from "./parsers/wallet-parser.js";
 import { BloodBagParser } from "./parsers/blood-bag-parser.js";
 import { CoreInventoryParsers } from "./parsers/core-inventory-parsers.js";
+import { CoverageIntelligence } from "./coverage-intelligence-service.js";
+import { LogTypeCatalog } from "./log-type-catalog-service.js";
 
 export const registry = new ParserRegistry();
 registry.register(WalletParser);
 registry.register(BloodBagParser);
 CoreInventoryParsers.forEach((parser) => registry.register(parser));
+LogTypeCatalog.parserRegistry = registry;
+CoverageIntelligence.registry = registry;
 const repository = new CanonicalEventRepository();
 const rawLogs = new RawLogRepository();
 const replay = new ReplayService({ registry, events: repository });
@@ -39,9 +43,13 @@ export const CanonicalEvents = {
   async replay(){
     Events.emit("canonicalReplayProgress", { status: "starting" });
     try {
+      const startedAt = Date.now();
       const result = await replay.replay({ onProgress: (update) => Events.emit("canonicalReplayProgress", update) });
-      Events.emit("canonicalReplayCompleted", result);
-      return result;
+      const replayMetrics = { ...result, durationMilliseconds: Date.now() - startedAt };
+      try { await CoverageIntelligence.snapshotAfterReplay(replayMetrics); }
+      catch (snapshotError) { replayMetrics.snapshotWarning = snapshotError.message; }
+      Events.emit("canonicalReplayCompleted", replayMetrics);
+      return replayMetrics;
     } catch (error) {
       Events.emit("canonicalReplayFailed", { status: "error", error: error.message });
       throw error;

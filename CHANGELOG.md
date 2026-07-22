@@ -1,3 +1,23 @@
+# Sprint 11.1 - Read-Only Accounting Ledger Foundation
+- Added SQLite migration 007 and a separate versioned Accounting Ledger (`v1`) with controlled accounts, deterministic transactions/lines, rebuild-run metrics, and indexes for source, status, account, and item inspection.
+- Added modular projection-only ledger policies: balanced paid acquisitions/disposals and cash rewards; deferred non-cash rewards and item-only conversions; neutral transfer memoranda; and explicitly unresolved trades. No FIFO, lots, valuation, Purchases, or inventory behavior changed.
+- Added Settings rebuild/diagnostics and Project Health ledger reporting, including disposition counts, balance/reconciliation state, deferred/unresolved reasons, controlled account count, and persisted row totals.
+
+# Sprint 11 - Read-Only Accounting Projection Foundation
+- Added SQLite migration 006 with deterministic, versioned accounting projections and projection-run metrics separate from canonical events.
+- Added a paged rebuild service and validated policy classifications for paid acquisitions/disposals, conversions, wallet movements, rewards, neutral transfers, unresolved trades, and visible projection errors.
+- Added Settings developer diagnostics with reconciliation, outcomes, classifications, projection version, and rebuild progress. FIFO, lots, valuation, Purchases, and active accounting remain unchanged.
+
+# Sprint 10.10 - Legacy Item Market Purchase Coverage
+- Added strict canonical acquisition support for the verified legacy Item Market buy (1103) contract: `cost,item,seller`, one explicit item row, and quantity one.
+- Added browser-side aggregate profiling for all archived 1103 rows, reporting structural, UID, seller, cost, accepted/rejected, and signature coverage without exposing raw participant or item data.
+- Preserved 1103 as a generic item-in/cash-out canonical event only; no FIFO, lots, purchase UI, valuation, or accounting behavior was introduced.
+
+# Sprint 10.9 - Canonical Transfer Events
+- Added the generic Transfer parser family for verified Item receive (legacy) (4101), Item send (4102), and Item receive (4103) logs.
+- Transfer events preserve the verified sender or receiver, item IDs, quantities, and send-item UIDs as generic `in`/`out` movements without creating acquisition, disposal, reward, conversion, cash, FIFO, or accounting records.
+- Added strict signature, participant, item-structure, quantity, and duplicate-item validation; unverified variants remain unsupported.
+
 # Sprint 10.5 - Torn Log Type Catalog & Coverage Intelligence
 - Added SQLite migration 004 for a durable Torn log-type reference catalog, including active/inactive state and append-only new/renamed/removed change history.
 - Added an API-queued Torn `logtypes` refresh plus Settings diagnostics that compare the official catalog, locally observed archive records, and registered parser coverage.
@@ -7,6 +27,21 @@
 - Added verified canonical acquisition parsers for legacy Bazaar buys (1220) and Abroad buys (4201), including item-in, cash-out, unit/total consideration, seller, and generic area metadata where present.
 - Added strict scalar-purchase validation for these new parser configurations; malformed, missing, and materially inconsistent consideration variants remain explicit unsupported results.
 - Marked both parsers as partial coverage because the representative export cannot prove every archived payload signature is covered.
+
+# Sprint 10.7 - Verified Item Conversion Framework
+- Added a reusable strict canonical conversion-parser factory for verified item inputs and item/cash outputs.
+- Added partial canonical conversion coverage for grenade boxes (2350), medical-supply boxes (2360), and stash boxes (2407), with input/output movement validation and duplicate-output rejection.
+- Kept conversion events descriptive only: no purchase records, lots, FIFO, valuation, or cost-basis behavior changed.
+
+# Sprint 10.8 - Canonical Cash-Sale Events
+- Added a reusable strict cash-sale parser family for verified item-out/cash-in canonical disposal events.
+- Added partial coverage for legacy/current Item Market sales (1104, 1113), legacy/current Bazaar sales (1221, 1226), and Item Shop sales (4210), preserving verified buyer, UID, unit/total proceeds, and generic source context where present.
+- Added no profit, fees, proceeds matching, FIFO, lots, or accounting behavior.
+
+# Sprint 10.8.5 - Coverage Intelligence
+- Added read-only archive-level coverage, signature, parser-family, replay-progress, and Project Health diagnostics.
+- Added compact SQLite coverage snapshots after successful replay and enriched raw-log export metadata with per-type coverage context without increasing exported examples.
+- Kept raw logs, replay semantics, parser output, canonical events, and accounting behavior unchanged.
 
 # Sprint 10.2 - Raw Log Warehouse and Historical Import Foundation
 - Added SQLite migration 002 with immutable `raw_logs`, durable import runs, resumable checkpoints, and conflict diagnostics.

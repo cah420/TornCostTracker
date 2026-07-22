@@ -1,6 +1,7 @@
 import { Events } from "../../events.js";
 import { RawLogRepository } from "../../database/raw-log-repository.js";
 import { RawLogRedactor } from "./raw-log-redactor.js";
+import { CoverageIntelligence } from "./coverage-intelligence-service.js";
 
 const PAGE_SIZE = 100;
 function dateStamp(){ return new Date().toISOString().slice(0, 10); }
@@ -25,8 +26,8 @@ export function exportFilename(filters, redactionMode){
 }
 
 export class RawLogExportService {
-  constructor({ repository = new RawLogRepository(), redactorFactory = () => new RawLogRedactor(), pageSize = PAGE_SIZE } = {}){
-    this.repository = repository; this.redactorFactory = redactorFactory; this.pageSize = pageSize; this.cancelRequested = false;
+  constructor({ repository = new RawLogRepository(), redactorFactory = () => new RawLogRedactor(), coverageProvider = null, pageSize = PAGE_SIZE } = {}){
+    this.repository = repository; this.redactorFactory = redactorFactory; this.coverageProvider = coverageProvider; this.pageSize = pageSize; this.cancelRequested = false;
   }
   cancel(){ this.cancelRequested = true; }
   async count(filters){ return this.repository.countForExport(validateExportFilters(filters)); }
@@ -37,9 +38,9 @@ export class RawLogExportService {
     const count = await this.repository.countForExport(safeFilters);
     const startedAt = Date.now();
     const redactor = redactionMode === "redacted" ? this.redactorFactory() : null;
-    const chunks = [];
-    const metadata = { _recordType: "export_metadata", application: "TornCostTracker", exportFormat: "raw-log-jsonl", exportFormatVersion: 1, createdAt: new Date().toISOString(), redactionMode, filters: { ...safeFilters, sourceLogId: safeFilters.sourceLogId || undefined }, sortOrder: safeFilters.sortOrder === "newest" ? "newest-first" : "oldest-first", recordCount: count };
-    chunks.push(`${JSON.stringify(metadata)}\n`);
+    const chunks = []; const coverage = this.coverageProvider ? await this.coverageProvider.dashboard() : null;
+    const exportTimestamp = new Date().toISOString();
+    const coverageByLogType = new Map((coverage?.signatures ?? []).map((row) => [String(row.logTypeId), { observedRecordCount: row.observedCount, observedSignatureCount: row.observedSignatures, parserStatus: row.status, parserFamily: row.family, representativeSignatures: String(row.payloadSignatures ?? "none").split(" | "), exportedExampleCount: 0, exportTimestamp }]));
     let cursor = null; let exported = 0; const perType = new Map();
     while (!this.cancelRequested && (safeFilters.maximum === null || exported < safeFilters.maximum)) {
       const rows = await this.repository.pageForExport(safeFilters, { cursor, limit: this.pageSize });
@@ -52,6 +53,7 @@ export class RawLogExportService {
         const envelope = { _recordType: "raw_log", sourceLogId: row.source_log_id, eventTimestamp: row.event_timestamp, logTypeId: row.log_type_id, category: row.category, title: row.title, raw: redactor ? redactor.redact(raw) : raw, payloadHash: row.payload_hash, importedAt: row.imported_at, firstSeenAt: row.first_seen_at, lastSeenAt: row.last_seen_at };
         chunks.push(`${JSON.stringify(envelope)}\n`);
         perType.set(typeKey, (perType.get(typeKey) ?? 0) + 1);
+        if (coverageByLogType.has(typeKey)) coverageByLogType.get(typeKey).exportedExampleCount += 1;
         exported += 1;
       }
       cursor = { timestamp: rows.at(-1).event_timestamp, sourceLogId: rows.at(-1).source_log_id };
@@ -61,10 +63,12 @@ export class RawLogExportService {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     const cancelled = this.cancelRequested;
+    const metadata = { _recordType: "export_metadata", application: "TornCostTracker", exportFormat: "raw-log-jsonl", exportFormatVersion: 2, createdAt: exportTimestamp, redactionMode, filters: { ...safeFilters, sourceLogId: safeFilters.sourceLogId || undefined }, sortOrder: safeFilters.sortOrder === "newest" ? "newest-first" : "oldest-first", recordCount: count, coverageByLogType: Object.fromEntries(coverageByLogType) };
+    chunks.unshift(`${JSON.stringify(metadata)}\n`);
     const result = { status: cancelled ? "cancelled" : "completed", exported, matching: count, filename: exportFilename(safeFilters, redactionMode), blob: new Blob(chunks, { type: "application/x-ndjson;charset=utf-8" }) };
     Events.emit("rawLogExportCompleted", { ...result, blob: undefined });
     return result;
   }
 }
 
-export const RawLogExporter = new RawLogExportService();
+export const RawLogExporter = new RawLogExportService({ coverageProvider: CoverageIntelligence });

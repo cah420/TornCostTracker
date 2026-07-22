@@ -33,4 +33,19 @@ export class CanonicalEventRepository {
   async listParserVersions(){
     return this.database.query("SELECT parser_name, parser_version, COUNT(*) AS event_count FROM canonical_events GROUP BY parser_name, parser_version ORDER BY parser_name, parser_version");
   }
+  async eventTypeCounts(){
+    return this.database.query("SELECT event_type, COUNT(*) AS count FROM canonical_events GROUP BY event_type ORDER BY event_type");
+  }
+  async eventCountsByLogType(){
+    return this.database.query(`SELECT r.log_type_id, COUNT(e.id) AS canonical_events
+      FROM raw_logs r LEFT JOIN canonical_events e ON e.source_log_id = r.source_log_id
+      GROUP BY r.log_type_id`);
+  }
+  async pageForProjection({ timestamp = null, id = null, limit = 250 } = {}){
+    const bind = []; let where = "";
+    if (timestamp !== null) { where = "WHERE (event_timestamp > ? OR (event_timestamp = ? AND id > ?))"; bind.push(timestamp, timestamp, id ?? ""); }
+    bind.push(Math.max(1, Math.min(Number(limit) || 250, 500)));
+    return this.database.query(`SELECT id, event_timestamp, schema_version, event_type, canonical_payload_json FROM canonical_events ${where}
+      ORDER BY event_timestamp ASC, id ASC LIMIT ?`, bind);
+  }
 }

@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import { AccountingClassification, ProjectionOutcome, projectCanonicalEvent } from "./accounting-projection.js";
+
+function event(overrides = {}){ return { id: "canonical:test", sourceLogId: "raw:test", eventTimestamp: 1, schemaVersion: 1, eventType: "acquisition", parserName: "test", movements: [{ direction: "in", resourceType: "item", resourceId: "1", quantity: 1, attributes: { uid: "7" } }, { direction: "out", resourceType: "cash", amount: 50 }], counterparties: [{ role: "seller", entityId: "2" }], sourceMetadata: { logType: 1 }, ...overrides }; }
+const acquisition = projectCanonicalEvent(event());
+assert.equal(acquisition.outcome, ProjectionOutcome.projectable);
+assert.equal(acquisition.classification, AccountingClassification.paidAcquisition);
+assert.equal(acquisition.projectedMovements[0].category, "item_in");
+assert.equal(acquisition.projectedMovements[1].category, "cash_out");
+assert.equal(acquisition.id, "projection:1:canonical:test");
+const disposal = projectCanonicalEvent(event({ id: "canonical:disposal", eventType: "disposal", movements: [{ direction: "out", resourceType: "item", resourceId: "1", quantity: 1 }, { direction: "in", resourceType: "cash", amount: 60 }] }));
+assert.equal(disposal.classification, AccountingClassification.paidDisposal);
+const conversion = projectCanonicalEvent(event({ id: "canonical:conversion", eventType: "conversion", parserName: "box", movements: [{ direction: "out", resourceType: "item", resourceId: "1", quantity: 1 }, { direction: "in", resourceType: "item", resourceId: "2", quantity: 2 }] }));
+assert.equal(conversion.classification, AccountingClassification.conversion);
+assert.equal(conversion.basisStatus, "deferred_allocation");
+const reward = projectCanonicalEvent(event({ id: "canonical:reward", eventType: "reward", movements: [{ direction: "in", resourceType: "item", resourceId: "2", quantity: 1 }] }));
+assert.equal(reward.classification, AccountingClassification.rewardNonCash);
+assert.equal(reward.basisStatus, "known_no_cash_consideration");
+const cashReward = projectCanonicalEvent(event({ id: "canonical:cash-reward", eventType: "reward", movements: [{ direction: "in", resourceType: "cash", amount: 5 }] }));
+assert.equal(cashReward.classification, AccountingClassification.cashReward);
+const transfer = projectCanonicalEvent(event({ id: "canonical:transfer", eventType: "transfer", movements: [{ direction: "in", resourceType: "item", resourceId: "2", quantity: 1 }] }));
+assert.equal(transfer.outcome, ProjectionOutcome.neutral);
+assert.equal(transfer.classification, AccountingClassification.transferNeutral);
+assert.equal(transfer.projectedMovements[0].category, "neutral_item_in");
+const trade = projectCanonicalEvent(event({ id: "canonical:trade", eventType: "transfer", parserName: "trade", movements: [{ direction: "transfer", resourceType: "item", resourceId: "2", quantity: 1 }] }));
+assert.equal(trade.outcome, ProjectionOutcome.unresolved);
+assert.equal(trade.unresolvedReason.code, "trade_correlation_required");
+const malformed = projectCanonicalEvent(event({ id: "canonical:bad", movements: [{ direction: "in", resourceType: "item", resourceId: "2", quantity: 0 }] }));
+assert.equal(malformed.outcome, ProjectionOutcome.projectionError);
+assert.match(malformed.projectionError.detail, /positive quantity/);
+console.log("Accounting projection policy deterministic tests passed.");

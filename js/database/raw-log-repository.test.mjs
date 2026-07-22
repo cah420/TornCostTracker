@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { RawLogRepository } from "./raw-log-repository.js";
 
 class RecordingDatabase {
-  constructor(){ this.transactions = []; }
-  async query(sql){
+  constructor(){ this.transactions = []; this.queries = []; }
+  async query(sql, bind = []){
+    this.queries.push({ sql, bind });
     if (sql.includes("FROM raw_logs WHERE source_log_id IN")) return [{ source_log_id: "duplicate", payload_hash: "same" }, { source_log_id: "conflict", payload_hash: "original" }];
     return [];
   }
@@ -26,4 +27,7 @@ assert.match(sql, /UPDATE raw_logs SET last_seen_at/);
 assert.match(sql, /INSERT INTO raw_log_conflicts/);
 assert.match(sql, /INSERT INTO sync_checkpoints/);
 assert.match(sql, /UPDATE log_import_runs/);
+await repository.pageByLogType("1103", { timestamp: 10, sourceLogId: "cursor", limit: 501 });
+assert.match(database.queries.at(-1).sql, /log_type_id = \?/);
+assert.deepEqual(database.queries.at(-1).bind, ["1103", 10, 10, "cursor", 500]);
 console.log("Raw-log repository deterministic transaction tests passed.");
