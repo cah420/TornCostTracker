@@ -1,6 +1,6 @@
 import { stableStringify } from "../raw-log-serialization.js";
 
-export const ACCOUNTING_PROJECTION_VERSION = 1;
+export const ACCOUNTING_PROJECTION_VERSION = 2;
 export const ProjectionOutcome = Object.freeze({ projectable: "projectable", neutral: "neutral", unresolved: "unresolved", ignored: "ignored", projectionError: "projection_error" });
 export const AccountingClassification = Object.freeze({ paidAcquisition: "paid_acquisition", paidDisposal: "paid_disposal", nonCashAcquisition: "non_cash_acquisition", nonCashDisposal: "non_cash_disposal", conversion: "conversion", walletMovement: "wallet_movement", transferNeutral: "transfer_neutral", tradeUnresolved: "trade_unresolved", rewardNonCash: "reward_non_cash", cashReward: "cash_reward", unsupportedSemantics: "unsupported_semantics", ignoredSemantics: "ignored_semantics", projectionError: "projection_error" });
 const outcomes = new Set(Object.values(ProjectionOutcome)); const classifications = new Set(Object.values(AccountingClassification));
@@ -30,7 +30,7 @@ export function projectCanonicalEvent(event, { projectionVersion = ACCOUNTING_PR
   try {
     if (!event?.id || !Number.isFinite(event.eventTimestamp) || !event.eventType) fail("Canonical event envelope is invalid.");
     const canonicalMovements = Array.isArray(event.movements) ? event.movements : fail("Canonical event movements are invalid.");
-    if (event.parserName === "trade") {
+    if (event.parserName === "trade" || event.attributes?.correlationRequired === true) {
       const record = { id: accountingProjectionId(event.id, projectionVersion), canonicalEventId: event.id, canonicalEventVersion: event.schemaVersion, projectionVersion, canonicalEventType: event.eventType, eventTimestamp: event.eventTimestamp, participantMetadata: { actor: event.actor ?? null, counterparties: event.counterparties ?? [] }, sourceMetadata: { sourceLogId: event.sourceLogId ?? null, source: event.sourceMetadata ?? {} }, ...unresolved(AccountingClassification.tradeUnresolved, "trade_correlation_required", "Trade lifecycle evidence requires a correlated aggregate.", []) };
       validateProjection(record); return record;
     }
@@ -42,15 +42,21 @@ export function projectCanonicalEvent(event, { projectionVersion = ACCOUNTING_PR
     } else if (event.eventType === "disposal") {
       if (!has(normal, (m) => m.category === "item_out") || !has(normal, (m) => m.category === "cash_in")) fail("Paid disposal requires item-out and cash-in movements.");
       interpretation = projectable(event, AccountingClassification.paidDisposal, normal, { proceedsStatus: "known_total_proceeds" });
+    } else if (event.eventType === "non_cash_acquisition") {
+      if (!has(normal, (m) => m.category === "item_in")) fail("Non-cash acquisition requires an item-in movement.");
+      interpretation = projectable(event, AccountingClassification.nonCashAcquisition, normal, { basisStatus: "unknown_basis" });
     } else if (event.eventType === "conversion") {
       if (event.parserName === "wallet") interpretation = projectable(event, AccountingClassification.walletMovement, normal, { basisStatus: "deferred_allocation" });
       else if (!has(normal, (m) => m.category === "item_out") || !(has(normal, (m) => m.category === "item_in") || has(normal, (m) => m.category === "cash_in"))) fail("Conversion requires verified input and output movements.");
       else interpretation = projectable(event, AccountingClassification.conversion, normal, { basisStatus: "deferred_allocation" });
+    } else if (event.eventType === "gift_received") {
+      if (!has(normal, (m) => m.category === "item_in")) fail("Gift received requires an item-in movement.");
+      interpretation = projectable(event, AccountingClassification.rewardNonCash, normal, { basisStatus: "known_no_cash_consideration" });
     } else if (event.eventType === "reward") {
       if (!has(normal, (m) => m.category === "item_in" || m.category === "cash_in")) fail("Reward requires an incoming verified movement.");
       interpretation = has(normal, (m) => m.category === "cash_in") && !has(normal, (m) => m.category === "item_in")
         ? projectable(event, AccountingClassification.cashReward, normal, { basisStatus: "not_applicable" })
-        : projectable(event, AccountingClassification.rewardNonCash, normal, { basisStatus: "known_no_cash_consideration" });
+        : projectable(event, AccountingClassification.rewardNonCash, normal, { basisStatus: event.attributes?.basisPolicy === "zero_cash" ? "known_no_cash_consideration" : "unknown_basis" });
     } else if (event.eventType === "transfer") {
       const neutralMovements = canonicalMovements.map((movement) => projectedMovement(movement, true));
       interpretation = { outcome: ProjectionOutcome.neutral, classification: AccountingClassification.transferNeutral, certainty: "verified", projectedMovements: neutralMovements, basisStatus: "not_applicable", proceedsStatus: "not_applicable" };

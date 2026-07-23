@@ -7,14 +7,25 @@ function number(value){ const parsed = Number(value); return Number.isFinite(par
 export class CanonicalEventRepository {
   constructor(database = Database){ this.database = database; }
 
-  async storeResult({ sourceLogId, parserName, parserVersion, status, events = [], errorMessage = null }){
+  async storeResult({ sourceLogId, parserName, parserVersion, supersedesParserNames = [], status, events = [], errorMessage = null }){
     const existing = events.length ? await this.database.query(`SELECT id FROM canonical_events WHERE id IN (${events.map(() => "?").join(",")})`, events.map((event) => event.id)) : [];
     const existingIds = new Set(existing.map((row) => row.id));
     const now = Date.now();
-    const statements = events.map((event) => ({ sql: `INSERT INTO canonical_events
+    const parserNames = [...new Set([parserName, ...supersedesParserNames].map(String).filter(Boolean))];
+    const parserPlaceholders = parserNames.map(() => "?").join(",");
+    const retainedIds = events.map((event) => event.id);
+    const deleteEventsSql = `DELETE FROM canonical_events WHERE source_log_id = ? AND parser_name IN (${parserPlaceholders})${retainedIds.length ? ` AND id NOT IN (${retainedIds.map(() => "?").join(",")})` : ""}`;
+    const supersededEventWhere = `source_log_id = ? AND parser_name IN (${parserPlaceholders})${retainedIds.length ? ` AND id NOT IN (${retainedIds.map(() => "?").join(",")})` : ""}`;
+    const replacementBind = [sourceLogId, ...parserNames, ...retainedIds];
+    const statements = [
+      { sql: `DELETE FROM accounting_projections WHERE canonical_event_id IN (SELECT id FROM canonical_events WHERE ${supersededEventWhere})`, bind: replacementBind },
+      { sql: deleteEventsSql, bind: replacementBind },
+      { sql: `DELETE FROM processing_state WHERE source_log_id = ? AND parser_name IN (${parserPlaceholders}) AND NOT (parser_name = ? AND parser_version = ?)`, bind: [sourceLogId, ...parserNames, parserName, parserVersion] },
+      ...events.map((event) => ({ sql: `INSERT INTO canonical_events
       (id, source_log_id, event_timestamp, parser_name, parser_version, schema_version, event_type, canonical_payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
-      bind: [event.id, event.sourceLogId, event.eventTimestamp, event.parserName, event.parserVersion, event.schemaVersion, event.eventType, stableStringify(event), now] }));
+      bind: [event.id, event.sourceLogId, event.eventTimestamp, event.parserName, event.parserVersion, event.schemaVersion, event.eventType, stableStringify(event), now] })),
+    ];
     statements.push({ sql: `INSERT INTO processing_state (source_log_id, parser_name, parser_version, status, processed_at, error_message)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(source_log_id, parser_name, parser_version) DO UPDATE SET status=excluded.status, processed_at=excluded.processed_at, error_message=excluded.error_message`,

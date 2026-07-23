@@ -19,6 +19,12 @@ export class AccountingLedgerRepository {
   async countRows(ledgerVersion){ const [transactions] = await this.database.query("SELECT COUNT(*) AS count FROM accounting_ledger_transactions WHERE ledger_version = ?", [ledgerVersion]); const [lines] = await this.database.query("SELECT COUNT(*) AS count FROM accounting_ledger_lines WHERE ledger_version = ?", [ledgerVersion]); return { transactions: number(transactions?.count), lines: number(lines?.count) }; }
   async latestRun(ledgerVersion){ const rows = await this.database.query("SELECT * FROM accounting_ledger_runs WHERE ledger_version = ? ORDER BY id DESC LIMIT 1", [ledgerVersion]); return rows[0] ? { ...rows[0], metrics: JSON.parse(rows[0].metrics_json) } : null; }
   async listAccounts(){ return this.database.query("SELECT * FROM accounting_ledger_accounts ORDER BY code"); }
+  async pageForCostLots(ledgerVersion, { timestamp = null, id = null, limit = 250 } = {}){
+    const bind = [ledgerVersion]; let where = "WHERE ledger_version = ?";
+    if (timestamp !== null) { where += " AND (event_timestamp > ? OR (event_timestamp = ? AND id > ?))"; bind.push(timestamp, timestamp, id ?? ""); }
+    bind.push(Math.max(1, Math.min(Number(limit) || 250, 500)));
+    return this.database.query(`SELECT id, event_timestamp, payload_json FROM accounting_ledger_transactions ${where} ORDER BY event_timestamp ASC, id ASC LIMIT ?`, bind);
+  }
   async accountBalances(ledgerVersion){
     return this.database.query(`SELECT l.account_code AS accountCode, COALESCE(SUM(l.debit_amount), 0) AS debits, COALESCE(SUM(l.credit_amount), 0) AS credits
       FROM accounting_ledger_lines l JOIN accounting_ledger_transactions t ON t.id = l.transaction_id

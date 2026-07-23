@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { migration010InventoryPosition } from "./010-inventory-position.js";
+const sql = migration010InventoryPosition.statements.join("\n");
+assert.equal(migration010InventoryPosition.version, 10);
+assert.match(sql, /CREATE TABLE accounting_inventory_positions/);
+assert.match(sql, /CREATE TABLE accounting_inventory_position_runs/);
+assert.match(sql, /CREATE TABLE accounting_inventory_position_diagnostics/);
+assert.match(sql, /UNIQUE\(position_version, item_id, item_uid\)/);
+assert.match(sql, /remaining_quantity DESC/); assert.match(sql, /remaining_basis DESC/); assert.match(sql, /position_confidence/);
+assert.doesNotMatch(sql, /UPDATE accounting_cost_lots|UPDATE accounting_fifo_consumptions|DELETE FROM accounting_cost_lots/);
+console.log("Inventory Position migration deterministic tests passed.");

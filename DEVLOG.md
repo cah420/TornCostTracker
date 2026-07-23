@@ -1,5 +1,77 @@
 # Development Log
 
+## Accounting Specification Update
+
+Logs 4101 and 4103 are now confirmed gifts rather than neutral transfers. Their separate legacy/current raw contracts emit the explicit canonical `gift_received` type, preserve sender, quantity, and any verified UID evidence, and project to zero-cash reward supply. Log 4102 remains an accounting-neutral outbound item transfer.
+
+Log 5802 identifies its output with Torn's descriptive `virus` value rather than a numeric item ID. The parser extracts that identifier and delegates to the pure Item Resolution service. The resolver owns the source-specific translation to canonical IDs: Simple 69, Polymorphic 70, Tunneling 71, Armored 72, Stealth 73, and Firewalk 103. Unknown sources or identifiers throw controlled resolution errors; the parser converts those into visible unsupported variants and emits no item movement.
+
+The resolver is separate from `ItemCatalogStore`. The catalog is asynchronous, local display enrichment and may be absent during deterministic replay; Item Resolution is a small version-controlled semantic registry required to interpret raw evidence. Future name/code-based raw contracts can add independent source tables behind the same `resolveItemId({ source, identifier })` API.
+
+Logs 2536 and 4446 are excluded from acquisition coverage. Halloween treats do not add inventory. Incoming trade items remain correlation evidence represented with non-inventory `transfer` evidence movements inside an unresolved activity; they cannot independently create inventory supply. Canonical persistence now removes any rebuildable projection that references a superseded event before replacing that event and its processing state in one transaction. Raw logs remain immutable.
+
+Because these changes alter physical supply and basis semantics, Accounting Projection, Ledger, Cost Lot, and FIFO constants advance together to version 2. The new chain is rebuilt in dependency order after canonical replay, leaving prior derived versions isolated for diagnosis instead of mixing them into current Purchases or Inventory Position results.
+
+## FIFO Rebuild Natural-Key Replacement Fix
+
+Acquisition coverage can legitimately change the available Cost Lot supply while existing disposal demands remain stable. A recomputed match may therefore retain the same FIFO database natural key—version, demand, source lot, and match sequence—but receive a different deterministic ID because its consumed quantity changed. The previous `ON CONFLICT(id)` persistence path could not replace that row and SQLite raised a unique-constraint error.
+
+FIFO rebuild now treats consumptions as an item-scoped derived replacement set. Before persisting an item's newly computed matches, the repository captures the prior deterministic IDs and deletes only that FIFO version/item's consumption rows. The rebuilt rows are then inserted in bounded batches. Unchanged IDs continue to count as existing for idempotency diagnostics; changed matches receive new IDs; stale matches disappear. A failed run remains visibly unhealthy and a retry reconstructs the affected item from immutable Cost Lots and disposal demands.
+
+The first version-2 browser rebuild also exposed a version ownership leak in Cost Lot policies: disposition-only results embedded version 1 while lot-producing results used the central version 2 constant. The run could finish processing but failed stored-disposition reconciliation, so FIFO rejected it as an unreconciled prerequisite. Disposition identity and version now come exclusively from the Cost Lot model helper.
+
+## Acquisition Coverage Sprint
+
+The redacted archive established one observed payload signature for each of 20 target IDs. Eighteen new exact-ID adapters were added. Similar legacy/current titles still dispatch independently. The later Accounting Specification Update reclassified 4101/4103 as gifts, 5802 as resolved supply, and 2536/4446 as outside acquisition coverage.
+
+Fifteen IDs now create accounting supply. Dump finds and verified seasonal pickups are explicit zero-cash rewards. Keepsake, job/company special, mission-credit, and Christmas-buck purchases are `non_cash_acquisition` events whose resource consideration is preserved as metadata but is not converted into Torn-dollar basis. Referral, stock, subscription, faction payout, wheel, and Christmas Town rewards create lots with unknown basis. This prevents both lost quantity and invented zero-dollar costs.
+
+Trade items incoming (4446) preserves correlation evidence but creates no inventory movement or Cost Lots. The superseding specification confirms 4101/4103 as zero-cash gifts and resolves 5802 virus names through the Item Resolution service. Halloween treat receipt (2536) remains non-inventory activity.
+
+The downstream policy boundary now distinguishes explicit zero-cash rewards from rewards with unknown basis. Resource-funded acquisitions have their own projection and ledger policy and generate deferred unknown-basis lots. Deterministic identities continue to derive from source log, parser name/version, ledger source, and line occurrence; replay and rebuild therefore upsert the same facts.
+
+## Sprint 15 - SQLite-Backed Purchases Replacement
+
+Purchases now consumes Inventory Position v1 through `PurchasesQueryService`; detailed rows are reconstructed read-only from immutable Cost Lots and FIFO consumptions. The query layer is not another accounting projection and never rematches lots, writes source data, or fills missing basis.
+
+The legacy route used `PurchaseSyncService -> PurchaseStore -> CostBasisService` and exposed acquisition rows, initial/incremental sync controls, and a newest-first holdings estimate. The replacement exposes remaining fungible/UID accounting positions, exact lot state, FIFO history, trace IDs, and controlled basis completeness. Current ItemStore quantity remains a separate informational comparison. Item-catalog names are display enrichment only.
+
+Compatibility audit: `tct.purchases.records` is obsolete as a Purchases accounting source; `tct.purchases.syncState` and legacy acquisition data remain temporarily shared by StatusBar, Settings cache management, and Conversion History. They were not broadly deleted. DataGrid sort keys remain UI preferences. See `docs/PURCHASES_COMPATIBILITY.md`.
+
+## Sprint 14 RC1 - Inventory Position Quality Calibration
+
+The first live Inventory Position rebuild proved the projection architecture—46,601 Positions over 97,199 Cost Lots and 8,547 FIFO Consumptions, with every reconciliation balanced and no diagnostics—but exposed semantic inflation: 46,138 rows were labeled UNKNOWN and 46,139 WARNING. The accounting values were sound. The initial classifier had used UNKNOWN for unknown basis and historical evidence, then propagated UID-less item warnings to every UID identity for that item.
+
+RC1 separates those dimensions. UNKNOWN is reserved for an explicitly indeterminate remaining quantity. Deferred or unknown basis produces DEFERRED because quantity is still known; partial lots remain PARTIAL; attributable historical shortfall and UID evidence lower confidence and produce WARNING without replacing the inventory status. UID-less evidence that cannot be assigned to a fungible Position is reported as unassigned Project Health evidence rather than attached to tens of thousands of specific UIDs.
+
+Confidence deductions are now proportional and bounded: deferred basis 1–15, unknown basis 1–25, historical shortfall 1–15, exact UID ambiguity 10, indeterminate quantity 40, and integrity failure 100. Every Position carries a structured explanation, and rebuild metrics persist detailed confidence/deduction/reason histograms. The authoritative matrix is `docs/INVENTORY_POSITION_CLASSIFICATION.md`. None of these semantic fields participates in Position quantity, basis, identity, source, persistence, or reconciliation math.
+
+## Sprint 14 - Inventory Position Projection Foundation (Part 1)
+
+Inventory Position v1 extends the discardable derived pipeline as `Immutable Cost Lots + Immutable FIFO Consumptions -> Inventory Position Projection -> Future SQLite-backed Purchases`. Migration 010 stores one deterministic row per fungible item ID or specific item UID, along with rebuild runs and controlled diagnostics. The service pages Cost Lots through their version/time index, requests FIFO totals only for each bounded lot page, aggregates positions in one pass, and persists in batches. Rebuilds update identical IDs, prune stale rows only after a complete replacement has been written, and never update either source layer.
+
+Each lot's current state is derived as original minus consumed: unchanged lots are OPEN, partly depleted lots are PARTIAL, and zero-remaining lots are CLOSED. Known allocated and confirmed no-cash lots contribute known remaining basis; shared deferred allocation and unknown basis remain distinct and nullable. A position-wide basis is null whenever part of that position is not safely allocatable, while `knownBasis` still exposes the known subset without representing the unknown part as zero.
+
+Confidence is accounting confidence, not correctness. It begins at 100 and deterministically deducts a quantity-weighted 30 points for deferred remaining basis, a quantity-weighted 50 points for unknown remaining basis, 15 for an observed historical FIFO shortfall, and 20 for unresolved UID evidence; projection errors force zero. NORMAL/PARTIAL positions with reconciled known basis can remain HEALTHY, deferred or uncertain positions are WARNING, and impossible quantities, basis, identities, or source references are UNHEALTHY. The initial name is the deterministic `Item #ID` fallback because versioned Cost Lot/FIFO inputs do not contain catalog names; a future SQLite reference-data join may enrich display names without changing identity or accounting.
+
+## Sprint 13 - Read-Only FIFO Consumption Engine
+
+FIFO v1 is an independent, discardable allocation layer over immutable Cost Lot v1 supply and Accounting Ledger v1 paid-disposal demand. Migration 009 stores deterministic disposal-demand rows, append-only consumption records, one source disposition per examined ledger transaction, bounded diagnostics, and rebuild runs. Cost Lot rows are never updated: derived remaining quantity is always `original quantity - persisted FIFO consumption quantity`.
+
+The rebuild scans Ledger transactions in stable chronological order, persists valid paid-disposal item-out occurrences, then processes independent item queues in deterministic disposal and acquisition order. A disposal cannot consume a later acquisition. Fungible demand consumes the oldest UID-less eligible lots; exact outgoing UID evidence selects only the matching UID lot. A UID-less disposal is left unresolved when historically eligible UID-bearing supply would require guessing identity. Partial matches are retained with explicit historical shortfalls, and conversion inputs, transfers, trades, cash activity, and unsupported disposal semantics remain outside matching.
+
+The initial live rebuild exposed a diagnostics performance boundary: the recent-lot inspection grouped the complete Cost Lot table before applying its UI limit. The inspection now selects its bounded recent-lot window through the Cost Lot version/time index first and performs indexed consumption totals only for those displayed rows. Starting a new rebuild also closes any prior same-version run left `running` by a browser refresh as an explicitly interrupted failed run before recording the replacement run.
+
+Known lot basis is consumed using cumulative integer allocation: `floor(total basis * cumulative quantity / original quantity)`. Each slice receives the difference between cumulative values before and after the slice, so partial consumption never overallocates and full consumption exactly equals the lot basis without floating-point rounding. Unknown, deferred, and known-no-cash-consideration lots can supply physical quantity while consumed basis remains null. The Settings and Project Health panels expose separate source, demand, match, lot, item, basis, and ordering reconciliations; no COGS, gain/loss, valuation, authoritative inventory, or current application calculation consumes this layer.
+
+## Sprint 12 - Read-Only Cost Lot Foundation
+
+Cost Lot v1 extends the derived pipeline as `Raw Log -> Canonical Event -> Accounting Projection -> Accounting Ledger -> Cost Lot Foundation -> Future FIFO Consumption -> Future Inventory Position -> Future Valuation`. Migration 008 persists one source disposition for every examined ledger transaction plus deterministic lot groups, child cost lots, and rebuild-run metrics. The service pages ledger transaction payloads in stable timestamp/transaction-ID order and never reads or modifies projections, canonical events, raw logs, Purchases, inventory, or the current LocalStorage accounting path.
+
+The ordered Cost Lot policy registry creates fully allocated groups for unambiguous single-item paid acquisitions, shared deferred groups for multi-item purchases, unknown/no-cash-basis deferred groups for non-cash rewards, and deferred output groups for conversions with item-in lines. Paid disposals, cash rewards, wallet movements, neutral transfers, unresolved trades, and cash-only conversions receive explicit non-lot dispositions. Each lot preserves its ledger line, item ID, optional UID, original quantity, full remaining quantity, zero consumed quantity, and deterministic acquisition sequence (`timestamp -> canonical event ID -> ledger transaction ID -> occurrence -> lot ID`). Indivisible unit basis remains null while total basis stays known. Future consumption should use separate append-only records rather than rewriting original acquisition facts.
+
+Run reconciliation proves one disposition per source transaction, source item-in quantity equals original and remaining lot quantity, consumed quantity remains zero, and known group basis equals allocated plus unallocated basis. The Settings panel and Project Health expose health, coverage, reasons, UID counts, throughput, and limited trace chains. FIFO, lot depletion, disposal matching, COGS, gain/loss, valuation, and authoritative inventory remain outside Sprint 12.
+
 ## Sprint 11.1 - Read-Only Accounting Ledger Foundation
 
 Accounting Ledger is a second, independent derived SQLite layer: `Raw Log -> Canonical Event -> Accounting Projection -> Accounting Ledger -> Future Cost Lots / FIFO -> Future Valuation`. Ledger v1 reads stored projection records in bounded pages only. It never reads raw payloads, changes canonical/projection rows, or becomes authoritative for Purchases, inventory, FIFO, existing LocalStorage lots, valuation, or profit/loss.

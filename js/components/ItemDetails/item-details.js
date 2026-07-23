@@ -3,12 +3,9 @@
  */
 import { Events } from "../../events.js";
 import { createItemImage } from "../item-image.js";
-import { CostBasisService } from "../../services/analysis/cost-basis-service.js";
-import { PlayerStore } from "../../stores/player.js";
-import { PurchaseStore } from "../../stores/purchases.js";
 import { ItemStore } from "../../stores/items.js";
 import { MarketValueService } from "../../services/market-value-service.js";
-import { CostLotStore } from "../../stores/inventory-ledger.js";
+import { PurchasesQueries } from "../../services/purchases/purchases-query-service.js";
 
 const LOCATION_LABELS = {
   inventory: "Inventory",
@@ -21,18 +18,10 @@ function formatDate(timestamp){
   return timestamp ? new Date(timestamp).toLocaleString() : "Never";
 }
 
-function formatPurchaseDate(timestamp){
-  return timestamp ? new Date(timestamp * 1000).toLocaleString() : "Unknown";
-}
-
 function formatMoney(value){
   return Number.isFinite(value)
     ? new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(value)
     : "Unknown";
-}
-
-function formatPercent(value){
-  return `${Number(value).toFixed(1)}%`;
 }
 
 export class ItemDetails {
@@ -46,17 +35,15 @@ export class ItemDetails {
     ];
     this.activeTab = "general";
     this.item = null;
+    this.purchaseRequest = 0;
     this.element = document.createElement("section");
     this.element.className = "tct-item-details";
     this.onItemSelected = ({ item }) => this.setItem(item);
     this.onItemsSynced = () => this.refreshSelectedItem();
-    this.onPurchaseChanged = () => this.render();
     this.onItemCacheCleared = () => { this.item = null; this.render(); };
     this.onMarketValuesUpdated = () => this.render();
     Events.on("itemSelected", this.onItemSelected);
     Events.on("itemsSynced", this.onItemsSynced);
-    Events.on("purchaseSyncCompleted", this.onPurchaseChanged);
-    Events.on("purchaseCacheCleared", this.onPurchaseChanged);
     Events.on("itemCacheCleared", this.onItemCacheCleared);
     Events.on("marketValuesUpdated", this.onMarketValuesUpdated);
     this.render();
@@ -65,8 +52,6 @@ export class ItemDetails {
   destroy(){
     Events.off("itemSelected", this.onItemSelected);
     Events.off("itemsSynced", this.onItemsSynced);
-    Events.off("purchaseSyncCompleted", this.onPurchaseChanged);
-    Events.off("purchaseCacheCleared", this.onPurchaseChanged);
     Events.off("itemCacheCleared", this.onItemCacheCleared);
     Events.off("marketValuesUpdated", this.onMarketValuesUpdated);
   }
@@ -154,54 +139,43 @@ export class ItemDetails {
   }
 
   createPurchasesContent(content){
-    const playerId = PlayerStore.current()?.id;
-    const acquisitions = playerId === null || playerId === undefined
-      ? []
-      : PurchaseStore.byItem(playerId, this.item.id);
-    const lots = playerId === null || playerId === undefined ? [] : CostLotStore.all(playerId);
-    const result = lots.length
-      ? CostBasisService.calculateFromLots(this.item, lots)
-      : CostBasisService.calculate(this.item, acquisitions);
     const note = document.createElement("p");
     note.className = "tct-item-details__note";
-    note.textContent = "Estimated from newest known acquisitions first to represent the lots making up current holdings.";
-    const summary = document.createElement("dl");
-    summary.className = "tct-item-details__basis-summary";
-    [
-      ["Current Quantity", result.currentQuantity],
-      ["Matched Quantity", result.matchedQuantity],
-      ["Priced Quantity", result.pricedQuantity],
-      ["Paid Units", result.paidQuantity],
-      ["Free / Zero-Cost Units", result.zeroCostQuantity],
-      ["Non-Cash Units", result.nonCashQuantity],
-      ["Unresolved Quantity", result.unresolvedQuantity],
-      ["Unmatched Quantity", result.unmatchedQuantity],
-      ["Quantity Coverage", formatPercent(result.quantityCoveragePercent)],
-      ["Priced Coverage", formatPercent(result.pricedCoveragePercent)],
-      ["Lowest Known Cash Cost", formatMoney(result.lowestKnownUnitCost)],
-      ["Highest Known Cash Cost", formatMoney(result.highestKnownUnitCost)],
-      ["Average Acquisition Cost", formatMoney(result.weightedAverageUnitCost)],
-      ["Known Cash Cost Basis", formatMoney(result.totalKnownCost)],
-      ["Oldest Matched Date", formatPurchaseDate(result.oldestMatchedTimestamp)],
-      ["Newest Matched Date", formatPurchaseDate(result.newestMatchedTimestamp)],
-    ].forEach(([label, value]) => {
-      const term = document.createElement("dt");
-      term.textContent = label;
-      const description = document.createElement("dd");
-      description.textContent = value;
-      summary.append(term, description);
-    });
-    const historyNote = document.createElement("p");
-    historyNote.className = "tct-item-details__note";
-    historyNote.textContent = "View complete acquisition history on the Purchases page.";
-    const warnings = document.createElement("ul");
-    warnings.className = "tct-item-details__warnings";
-    result.warnings.forEach((warning) => {
-      const row = document.createElement("li");
-      row.textContent = warning;
-      warnings.appendChild(row);
-    });
-    content.append(note, summary, historyNote, warnings);
+    note.textContent = "Loading SQLite Inventory Position and Cost Lot facts...";
+    content.append(note);
+    const itemId = String(this.item.id);
+    const request = ++this.purchaseRequest;
+    void PurchasesQueries.listPositions({ search: itemId, limit: 500 })
+      .then(async (result) => {
+        if (request !== this.purchaseRequest || String(this.item?.id) !== itemId) return;
+        const positions = result.rows.filter((row) => row.itemId === itemId);
+        if (!result.ready) throw new Error(result.reason);
+        if (!positions.length) { note.textContent = "No remaining SQLite accounting position exists for this item."; return; }
+        if (positions.length > 1) {
+          note.textContent = `${positions.length} separate accounting positions exist for this item. UID positions are not merged. Open Purchases to inspect each position.`;
+          return;
+        }
+        const details = await PurchasesQueries.getDetails(positions[0].id);
+        if (request !== this.purchaseRequest || String(this.item?.id) !== itemId) return;
+        const summary = document.createElement("dl"); summary.className = "tct-item-details__basis-summary";
+        [
+          ["Accounting Remaining Quantity", details.remainingQuantity],
+          ["Current Torn Quantity", details.currentQuantityComparison.currentTornQuantity ?? "Unavailable"],
+          ["Quantity Comparison", details.currentQuantityComparison.state.replaceAll("_", " ")],
+          ["Known Remaining Quantity", details.knownRemainingQuantity],
+          ["Deferred Quantity", details.deferredQuantity],
+          ["Unknown Quantity", details.unknownQuantity],
+          ["Basis Completeness", details.basisCompleteness],
+          ["Complete Remaining Basis", details.completeRemainingBasis === null ? "Not fully known" : formatMoney(details.completeRemainingBasis)],
+          ["Known Remaining Basis", formatMoney(details.knownRemainingBasis)],
+          ["Weighted Average Known Unit Basis", formatMoney(details.weightedAverageKnownUnitBasis)],
+          ["Lowest Known Unit Basis", formatMoney(details.lowestKnownUnitBasis)],
+          ["Highest Known Unit Basis", formatMoney(details.highestKnownUnitBasis)],
+        ].forEach(([label, value]) => { const term = document.createElement("dt"); term.textContent = label; const description = document.createElement("dd"); description.textContent = value; summary.append(term, description); });
+        const historyNote = document.createElement("p"); historyNote.className = "tct-item-details__note"; historyNote.textContent = "Open Purchases to inspect the position's Cost Lots, FIFO consumptions, and trace references.";
+        note.replaceWith(summary, historyNote);
+      })
+      .catch((error) => { if (request === this.purchaseRequest) note.textContent = `Purchase position unavailable: ${error.message}`; });
     return content;
   }
 }

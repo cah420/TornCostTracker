@@ -2,7 +2,7 @@
 
 ## SQLite migration foundation
 
-The active application still uses LocalStorage stores. SQLite infrastructure is intentionally dormant while repositories are introduced one persistence domain at a time. The planned boundary is `UI -> services -> repository interfaces -> SQLite repositories -> worker-hosted SQLite WASM/OPFS`. SQL, schema migrations, and transactions stay inside `js/database`; services and views will not contain SQL. See [SQLite Migration Plan](SQLITE_MIGRATION_PLAN.md) for the selected official-WASM/OPFS approach, browser limitations, schema, and phased cutover.
+The application is in a staged persistence migration. Purchases is SQLite-backed; owned-item synchronization and some compatibility consumers still use LocalStorage. The enforced boundary is `UI -> services -> repository interfaces -> SQLite repositories -> worker-hosted SQLite WASM/OPFS`. SQL, schema migrations, and transactions stay inside `js/database`; services and views do not contain SQL. See [SQLite Migration Plan](SQLITE_MIGRATION_PLAN.md) for browser limitations, schema, and phased cutover.
 
 ### Raw log warehouse
 
@@ -14,13 +14,21 @@ The raw-log warehouse is an optional, user-triggered SQLite archive. It stores c
 
 `raw_logs -> ParserRegistry -> canonical_events -> future accounting / analytics / replay projections`
 
-`Raw Log → Canonical Event → Accounting Projection → Accounting Ledger → Future Cost Lots / FIFO → Future Valuation`
+`Raw Log → Canonical Event → Accounting Projection → Accounting Ledger → Immutable Cost Lots → Immutable FIFO Consumption Records → Inventory Position Projection → Purchases Query Service → SQLite-Backed Purchases UI → Future Valuation → Future SQLite-Backed Application Feature Parity`
 
 Canonical events are derived, replayable SQLite records, never replacements for immutable raw evidence. Migration 003 adds one generic `canonical_events` envelope and `processing_state` keyed by source log, parser name, and parser version. The envelope contains broad event type, participants, generic resource movements, attributes, source metadata, parser version, and canonical schema version. It does not include FIFO, lots, cost basis, or mechanic-specific tables.
 
 Migration 006 adds the separate Accounting Projection boundary. `AccountingProjectionService` pages canonical events only, applies versioned projection policies, and stores deterministic projection IDs in `accounting_projections`; it never reads raw payloads or updates canonical rows. Each event receives exactly one controlled outcome: projectable, neutral, unresolved, ignored, or projection error. Paid acquisitions/disposals, conversions, wallet events, rewards, transfers, and trade lifecycle are explicitly separated. Transfers remain neutral, while current trade events remain unresolved pending correlation. Projection runs store rebuild/reconciliation metrics, but no ledger postings, cost lots, FIFO, value, profit, or active accounting changes are in scope.
 
 Migration 007 adds the independent Accounting Ledger boundary. `AccountingLedgerService` pages persisted projection rows only and uses a controlled, ordered policy registry to write deterministic `accounting_ledger_transactions` and `accounting_ledger_lines`. Posted integer-cash transactions must balance per transaction and globally; non-cash rewards and item-only conversions remain deferred, transfers are memorandum-only, and incomplete trades remain unresolved. The ledger is diagnostic and rebuildable, never authoritative for Purchases, inventory, LocalStorage FIFO/lots, valuation, or profit/loss.
+
+Migration 008 adds the independent Cost Lot boundary. `CostLotService` pages persisted Ledger v1 transactions only and records one deterministic source disposition for each. Eligible item-entry lines become one shared lot group per ledger transaction and one child lot per stable line occurrence. Lot Group preserves shared economic context; Cost Lot preserves one item identity, optional UID, quantity, source line, and acquisition order. Single-item paid basis is allocated only when unambiguous, while multi-item consideration, non-cash rewards, and conversion output basis remain deferred or unknown. Original quantity and source facts are immutable; remaining equals original and consumed equals zero throughout Sprint 12. Future FIFO should be represented through separate append-only consumption evidence rather than destructive changes to original acquisition facts.
+
+Migration 009 implements that append-only FIFO boundary. `FifoService` consumes Cost Lot v1 as acquisition supply and only verified paid-disposal Ledger v1 lines as demand. It persists immutable demand and consumption allocation facts while derived lot remaining quantity is calculated without changing Cost Lots. Matching is deterministic per item: disposal timestamp/canonical event/transaction/line order is matched against acquisition sequence, later acquisitions are causally ineligible, UID evidence requires exact identity, and UID-less demand never guesses among UID-bearing supply. Known basis uses cumulative integer allocation; deferred or unknown basis stays null. The layer does not post COGS, calculate gain/loss, value inventory, or affect current user-facing FIFO.
+
+Migration 010 adds Inventory Position v1 as a cached aggregate over Cost Lot v1 and FIFO v1 only. A fungible identity is item ID; a UID-bearing identity is item ID plus UID, so specific equipment is never merged. The rebuild pages lots once, loads indexed consumption totals for each bounded page, derives OPEN/PARTIAL/CLOSED lot state, and aggregates original/consumed/remaining quantity and safely known basis. Deferred allocation, unknown basis, UID ambiguity, and historical shortfalls remain separate confidence inputs. Position status describes the accounting state; health describes reconciliation safety; confidence is a documented 0-100 accounting-evidence score. Position rows are disposable, versioned, deterministic, and non-authoritative. Their deletion cannot lose evidence, and no rebuild updates Cost Lots, FIFO Consumptions, Ledger, Projection, Canonical Events, Raw Logs, or current inventory.
+
+The normative Position status, health, confidence, explanation, and diagnostic semantics are defined in [INVENTORY_POSITION_CLASSIFICATION.md](INVENTORY_POSITION_CLASSIFICATION.md). Classification metadata may be calibrated without changing accounting results; any semantic change must update that matrix in the same change.
 
 `ParserRegistry` is the parser boundary for new raw-log interpretation. The initial verified Wallet and Blood Bag parsers normalize item/cash movements into broad `conversion` events. Unknown logs become durable `unsupported` states; malformed parser output becomes an `error` state. `ReplayService` reads archived raw logs chronologically and upserts deterministic event IDs (`source log + parser + version + output index`), allowing safe repeated replay and future parser-version upgrades. Existing LocalStorage purchase/conversion accounting does not consume canonical events during this sprint.
 
@@ -34,7 +42,9 @@ The Item Conversion parser factory follows the same derived-event boundary. It n
 
 The Cash Sale parser factory provides the matching disposal boundary: verified item resources become `out` sold movements and verified gross proceeds become one `in` cash movement. It does not calculate net proceeds, fees, profit, or basis. Configurations preserve only verified source fields and participants; 1104, 1113, 1221, 1226, and 4210 are partial parser coverage because the representative export cannot prove all archived signatures. They remain derived canonical evidence, disconnected from all active accounting paths.
 
-The Transfer parser factory is the generic ownership-movement boundary. It presently accepts only three verified `data` signatures: 4101 `item,message,quantity,sender`; 4102 `items,message,receiver`; and 4103 `items,message,sender`. Receives emit `in` item movements and sends emit `out` item movements relative to the logged-in account. The source sender or receiver is retained as the sole known counterparty, while optional item UIDs are preserved in movement attributes. No absent local participant, cash movement, acquisition, disposal, trade completion, reward, valuation, FIFO, or accounting outcome is inferred. Unknown signatures and invalid structures become unsupported processing states. The `Transfer` parser-family metadata is automatically included in Coverage Intelligence and Project Health.
+The player-item movement boundary accepts three verified `data` signatures: 4101 `item,message,quantity,sender`; 4102 `items,message,receiver`; and 4103 `items,message,sender`. Confirmed 4101/4103 receipts emit `gift_received` with item-in movements and known zero cash basis; 4102 sends remain neutral item-out transfers. The known sender or receiver and optional item UIDs are preserved. Unknown signatures and invalid structures become unsupported processing states.
+
+Name-based Torn identifiers pass through `ItemResolutionService.resolveItemId({ source, identifier })` before entering canonical accounting. The resolver is pure, deterministic, and source-scoped; unknown values fail visibly. It is intentionally independent from the asynchronous Item Catalog, which remains display enrichment rather than accounting evidence.
 
 ### Torn log type catalog and coverage intelligence
 
@@ -72,23 +82,17 @@ Each `OwnedItem` is the canonical current-holdings record. Its `totalQuantity` i
 
 Importers return one normalized record per Torn source row. ItemStore aggregates duplicate base item IDs within the current source batch, then replaces only that source's previous quantity. It never adds the fresh aggregate to cached source data, so repeated synchronization is idempotent. Unique equipment UID and stat payloads are intentionally deferred; current ownership remains one OwnedItem per base Torn item ID.
 
-## Purchase history
+## SQLite-backed Purchases
 
-`Torn user logs -> PurchaseLogImporter -> PurchaseSyncService -> PurchaseStore -> acquisition views`
+`Inventory Position v1 -> PurchasesQueryService -> PurchasePositionDetails -> Purchases / ItemDetails`
 
-`Acquisition` records are normalized and account-scoped. PurchaseStore persists compact transaction and item-line data, not raw Torn log responses. A source importer is responsible for any safe cost allocation; downstream analysis never derives a unit price from a transaction total.
+The query service is an application read model, not another accounting projection. It validates Position/Cost Lot/FIFO version compatibility, performs bounded indexed reads, derives remaining lot state only from persisted original quantities and FIFO sums, and never writes or rematches accounting evidence. Views contain no SQL.
 
-## Current-holdings cost basis
+Each selector row is one fungible or UID-specific Inventory Position. UID positions are never merged. Item-level unmatched evidence is returned separately and is not copied onto a UID. Catalog names enrich display only, with deterministic `Item #ID` fallback. ItemStore supplies only the separately labelled current Torn quantity comparison; it never changes the accounting position.
 
-`OwnedItem + PurchaseStore acquisitions -> CostBasisService -> ItemDetails Purchases tab`
+Known remaining basis is the attributable portion of remaining lots. Complete remaining basis is non-null only when no remaining quantity is deferred or unknown. Valid no-cash lots contribute a known zero. Lowest and highest unit basis compare remaining-lot basis ratios; weighted average is `known remaining basis / known remaining quantity`, not an average of lot averages. Trace data retains Position, Cost Lot, Ledger transaction, Projection, Canonical Event, and FIFO Consumption identifiers.
 
-CostBasisService is a pure, non-persistent analysis service. It takes matching normalized item lines from supported acquisition sources and consumes them newest first until current `totalQuantity` is covered. A lot may be partially used. Equal timestamps use descending acquisition ID as a deterministic secondary sort, so estimates do not change between runs.
-
-Quantity coverage (`matched/current`) and priced coverage (`reliably priced/current`) remain separate. Unresolved lines, such as a multi-item trade with no safe allocation, can cover quantity but contribute no known cost. This is an estimate: acquisition history may omit gifts, rewards, crimes, sales, transfers, item use, and history outside the imported range.
-
-Acquisition cost semantics are explicit: `paid/known` lots contribute cash cost; `free/zero` lots are valid $0 cash lots; `nonCash` lots retain quantity without an invented dollar amount; and `unresolved` lots retain quantity without a safe cash allocation. Internal movements between the player's locations never become acquisitions. Future economic or inherited-cost analysis can build on these canonical classifications without changing known cash cost basis.
-
-Current importer support is intentionally verified-only: Bazaar, Item Market, Abroad, existing City Shop matching, supported paid trades, confirmed zero-cost gifts/finds, and the verified wallet/blood-bag conversion events are normalized. Bazaar add/remove/edit/open-close/sell and trade initiate/expire/item-add lifecycle entries are explicitly excluded. Additional gifts, rewards, conversion mechanics, Item Market return, Display Case movement, and City Shop variants remain pending exact Torn log payload and direction confirmation.
+The legacy `PurchaseStore -> CostBasisService` newest-first estimate is retired from Purchases and its Item Details tab. Shared legacy state remains temporarily for Conversion History, StatusBar, and Settings cache compatibility; see [Purchases compatibility](PURCHASES_COMPATIBILITY.md).
 
 ## Inventory conversion ledger and valuation
 

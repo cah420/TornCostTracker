@@ -1,5 +1,74 @@
 # Manual verification
 
+## Accounting Specification Update
+
+- Run `node js/services/history/item-resolution-service.test.mjs` independently for all six virus mappings, normalization, unknown identifiers, malformed identifiers, and unknown resolution sources.
+- Run `node js/services/history/acquisition-coverage-parser.test.mjs`, `node js/services/history/core-inventory-parsers.test.mjs`, `node js/services/history/accounting-projection.test.mjs`, and `node js/database/canonical-event-repository.test.mjs`.
+- Confirm 4101/4103 emit `gift_received`, preserve every verified quantity/UID, project to known zero cash basis, and create zero-basis Cost Lots. Confirm 4102 remains a neutral outbound transfer.
+- Confirm every verified 5802 virus value creates exactly one item with the canonical ID and zero basis. Unknown or malformed identifiers must become visible unsupported results with no event or lot.
+- Confirm 2536 creates no inventory movement or Cost Lot. Confirm 4446 contains no `in` inventory movement, remains correlation-required, and creates no Cost Lot.
+- Replay Canonical Events before rebuilding Projection v2, Ledger v2, Cost Lots v2, FIFO v2, and Inventory Position in that order. Confirm superseded 4101/4103/4446/5802 canonical outputs and their obsolete projections are replaced rather than duplicated, raw logs are unchanged, and Purchases accepts only the current derived-version chain.
+
+## FIFO natural-key replacement bugfix
+
+- Run `node js/services/history/fifo-service.test.mjs`, `node js/database/fifo-repository.test.mjs`, and `node js/services/history/fifo-consumption.test.mjs`.
+- Run `node js/services/history/cost-lot.test.mjs` and confirm lot-producing and disposition-only outcomes both use the current Cost Lot version and deterministic identity prefix.
+- The service fixture changes an existing Cost Lot quantity between rebuilds while retaining the same demand, lot, and match sequence. Confirm the old consumption is removed, the revised identity is stored without a unique-key collision, only one current row remains, reconciliation passes, and the next unchanged replay reports the identity as existing.
+- In the browser, rerun FIFO after a completed reconciled Cost Lot rebuild. The prior failed run may remain in run history, but the new run should replace current item-scoped consumptions and complete without clearing purchase, Cost Lot, Ledger, or raw-log data.
+
+## Acquisition Coverage Sprint
+
+- Run `node js/services/history/acquisition-coverage-parser.test.mjs` for all 20 target routes, exact legacy/current dispatch, item ID/quantity/UID handling, multi-item preservation, canonical classifications, ledger effects, Cost Lot creation/non-creation, basis status, optional presentation params, malformed signatures, trade deferral, and deterministic replay.
+- Run `node js/services/history/core-inventory-parsers.test.mjs`, `node js/services/history/accounting-projection.test.mjs`, `node js/services/history/accounting-ledger.test.mjs`, `node js/services/history/cost-lot.test.mjs`, and `node js/services/history/cost-lot-service.test.mjs` for regression coverage.
+- Replay the same archive twice, then rebuild Projection, Ledger, Cost Lots, FIFO, and Inventory Position twice. Confirm canonical IDs and derived row identities are stable and that the second pass creates no duplicates.
+- Confirm 1401, 1404, 8930, and 8980 create item supply with known zero cash basis. Confirm 4850, 6401, 6505, 7900, and 8934 create unknown-basis non-cash supply. Confirm 5251, 5530, 5575, 6797, 8377, and 8938 create unknown-basis reward supply.
+- Confirm 4101/4103/5802 create zero-cash supply, 4446 remains non-inventory correlation evidence, and 2536 creates no item supply. No Torn snapshot quantity may manufacture historical supply.
+- In Project Health, refresh coverage after replay and confirm the observed signatures are supported, except 4446 remains intentionally partial at the accounting-correlation boundary.
+
+## SQLite-Backed Purchases Replacement (Sprint 15)
+
+- Run `node js/services/purchases/purchase-position-details.test.mjs` for untouched/partial/closed lots, multiple lots, zero/deferred/unknown basis, exact weighted statistics, UID isolation, current-quantity comparisons, traceability, and large values.
+- Run `node js/services/purchases/purchase-position-performance.test.mjs` for deterministic 10,000-lot read-model assembly and repeatable minimum/maximum/weighted basis results.
+- Run `node js/services/purchases/purchases-query-service.test.mjs`, `node js/database/purchases-query-repository.test.mjs`, and `node js/views/purchases-sqlite.test.mjs` for readiness/version checks, indexed read-only queries, search/filter/paging inputs, stale-request safety, no raw SQL in views, and zero legacy accounting-cache reads.
+- In the supported browser profile, verify selector load/search/filter/paging timings against the full 46,601-position baseline; rapidly change selections/filters and confirm stale results never replace the latest request.
+- Inspect fungible and UID positions, partial/multi-lot histories, complete/incomplete basis, zero-cost lots, unassigned evidence, empty/error states, Current Torn Quantity comparison, responsive layout, and Project Health Purchases metrics.
+- Confirm Settings rebuilds still work, source-table totals remain unchanged after Purchases browsing, and the baseline remains 97,199 Cost Lots, 8,547 FIFO Consumptions, 46,601 positions, and 1,717,000 remaining units when using the same archive.
+
+## Inventory Position Quality Calibration (Sprint 14 RC1)
+
+- Run the Inventory Position model and service tests and confirm NORMAL, PARTIAL, DEFERRED, UNKNOWN, NEGATIVE, and ERROR semantics match `docs/INVENTORY_POSITION_CLASSIFICATION.md`.
+- Confirm unknown/deferred **basis** never produces UNKNOWN status; UNKNOWN is reserved for explicitly indeterminate remaining quantity. Confirm partial consumption alone remains HEALTHY at 100 confidence.
+- Confirm UID-less historical evidence is not copied to every UID Position. Evidence with no exact Position identity must appear in the unassigned-evidence histogram.
+- Confirm every Position explanation shows status, health, confidence, named deductions, structured reasons, and supporting context without exposing raw payloads.
+- Rebuild twice in the browser and compare against the pre-RC1 live accounting totals: 46,601 Positions, 97,199 Cost Lots, and 8,547 FIFO Consumptions. Position count, quantities, basis values, lot counts, source totals, and every reconciliation must remain identical. Only classification, confidence, explanation, and quality histograms may change.
+- Capture the post-RC1 status, health, confidence, warning-reason, UNKNOWN-reason, and unassigned-evidence histograms for calibration review. Do not infer post-RC1 totals from the pre-RC1 distribution.
+
+## Inventory Position Projection (Sprint 14)
+
+- Run `node js/database/migrations/inventory-position.test.mjs` and `node js/database/inventory-position-repository.test.mjs` for migration 010, source-version persistence, deterministic upserts, indexed queries, interrupted-run recovery, pruning, and clearing that never targets Cost Lots or FIFO.
+- Run `node js/services/history/inventory-position.test.mjs` for fungible/UID identity, open/partial/closed lot states, full and partial consumption, multiple lots/consumptions, known/no-cash/deferred/unknown basis, confidence, status, health, negative/impossible diagnostics, and large integer values.
+- Run `node js/services/history/inventory-position-performance.test.mjs` for a deterministic 20,000-lot aggregation fixture, and `node js/services/history/inventory-position-service.test.mjs` for paged source reads, global reconciliation, upstream isolation, stale-row handling, and second-run idempotency.
+- In an OPFS-capable browser, complete reconciled Cost Lot and FIFO rebuilds first. Run **Settings -> Inventory Position Projection -> Run / Rebuild Inventory Position** twice. Confirm quantity, known-basis, lot, source, and stored-position reconciliation pass; the second run inserts zero new identities; and Cost Lot/FIFO row totals remain unchanged.
+- Historical FIFO shortfalls, UID ambiguity, deferred allocation, and unknown basis may legitimately produce WARNING positions. Negative values, overconsumption, orphaned source records, duplicate/conflicting identities, or failed reconciliation must produce Unhealthy and block SQLite-backed Purchases work.
+- Confirm current Items, Purchases, conversion history, LocalStorage cost basis, market valuation, Raw Logs, Canonical Events, Accounting Projection, Ledger, Cost Lots, and FIFO records are unchanged.
+
+## FIFO Consumption Engine (Sprint 13)
+
+- Run `node js/database/migrations/fifo-consumption.test.mjs` and `node js/database/fifo-repository.test.mjs` for migration 009, deterministic constraints, persistence/query boundaries, and FIFO-version clearing that preserves Ledger and Cost Lots.
+- The FIFO repository fixture also verifies that recent derived-lot inspection applies its bounded, indexed Cost Lot window without grouping every persisted lot, and that starting a replacement rebuild closes an interrupted same-version run.
+- Run `node js/services/history/fifo-consumption.test.mjs` for demand extraction, partial consumption, one-to-many and many-to-one matching, causal ordering, equal-timestamp ties, exact/missing UID handling, deferred basis, historical shortfalls, and cumulative indivisible-basis allocation.
+- Run `node js/services/history/fifo-service.test.mjs` for paged Ledger processing, per-item supply loading, all reconciliation layers, source dispositions, derived remaining quantity, and a second rebuild with zero duplicate demands, consumptions, or dispositions.
+- In an OPFS-capable browser, rebuild Accounting Ledger and Cost Lots first, then use **Settings -> FIFO Consumption Engine -> Run / Rebuild FIFO** twice. Confirm no later lot satisfies an earlier disposal, Cost Lot rows remain unchanged, all internal reconciliations balance, and the second run inserts no new deterministic rows.
+- Treat historical shortfalls and deferred-basis consumption as warnings. Treat overconsumption, ordering violations, quantity/basis mismatches, or deterministic instability as failures that block Inventory Position work.
+
+## Cost Lot Foundation (Sprint 12)
+
+- Run `node js/database/migrations/cost-lot-foundation.test.mjs` and `node js/database/cost-lot-repository.test.mjs` for migration 008, deterministic constraints, isolated version clearing, and group/lot/disposition persistence.
+- Run `node js/services/history/cost-lot.test.mjs` for paid single/multi-item acquisition, exact and indivisible unit basis, repeated item occurrences, rewards, conversion outputs, cash-only conversions, UID validation, malformed sources, and explicitly ineligible ledger families.
+- Run `node js/services/history/cost-lot-service.test.mjs` for paged source processing, source/quantity/basis reconciliation, persistent dispositions, and a second rebuild with zero duplicate groups, lots, or dispositions.
+- In an OPFS-capable browser, rebuild Accounting Ledger first, then use **Settings -> Cost Lot Foundation -> Run / Rebuild Cost Lots** twice. Confirm every ledger transaction receives one disposition; original equals remaining quantity; consumed is zero; source, quantity, and basis reconciliation all balance; trades remain unresolved; and the second run inserts no new deterministic rows.
+- Confirm Items, Purchases, Conversion History, existing FIFO cost basis, and inventory totals are unchanged.
+
 ## Accounting Ledger Foundation (Sprint 11.1)
 
 - Run `node js/services/history/accounting-ledger.test.mjs` for controlled account catalog, deterministic IDs/order, paid posting balance, deferred multi-item allocation, non-cash reward, neutral transfer, unresolved trade, UID preservation, and malformed-money ledger-error coverage.

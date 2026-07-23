@@ -1,7 +1,7 @@
 import { stableStringify } from "../raw-log-serialization.js";
 import { LEDGER_POLICY_REGISTRY } from "./ledger-policies.js";
 
-export const ACCOUNTING_LEDGER_VERSION = 1;
+export const ACCOUNTING_LEDGER_VERSION = 2;
 export const LedgerStatus = Object.freeze({ posted: "posted", memorandum: "memorandum", deferred: "deferred", unresolved: "unresolved", error: "ledger_error" });
 export const LedgerAccounts = Object.freeze({ inventory: "inventory_asset_pending_basis", cashWallet: "cash_wallet", cashExternal: "cash_external", conversion: "conversion_clearing", conversionConsideration: "conversion_consideration", transfer: "transfer_clearing", rewardInventory: "reward_inventory_pending_basis", unresolved: "unresolved_clearing", saleProceeds: "item_sale_proceeds", cashReward: "cash_reward_income_pending_policy", nonCashReward: "non_cash_reward_pending_policy", purchase: "item_purchase_consideration", disposalInventory: "disposal_inventory_pending_basis", fees: "fees_expense", externalCashOutflow: "external_cash_outflow_pending_policy", deferred: "basis_allocation_deferred", trade: "trade_unresolved", neutralTransfer: "neutral_transfer_memo" });
 export const ACCOUNT_CATALOG = Object.freeze([

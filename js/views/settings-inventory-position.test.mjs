@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const source = await readFile(new URL("./settings.js", import.meta.url), "utf8");
+assert.match(source, /Inventory Position Projection/);
+assert.match(source, /rebuildInventoryPositionBtn/); assert.match(source, /refreshInventoryPositionBtn/);
+assert.match(source, /InventoryPositions\.rebuild/); assert.match(source, /InventoryPositions\.diagnostics/);
+assert.match(source, /Position v\$\{inventoryPosition\.positionVersion\}/);
+assert.match(source, /quantityReconciliationBalanced/); assert.match(source, /basisReconciliationBalanced/); assert.match(source, /lotReconciliationBalanced/);
+assert.match(source, /confidenceDistribution/); assert.match(source, /firstSourceLotId/); assert.match(source, /lastSourceLotId/);
+assert.match(source, /averageConfidence/); assert.match(source, /medianConfidence/); assert.match(source, /warningReasonHistogram/); assert.match(source, /unknownReasonHistogram/); assert.match(source, /confidenceDeductionStats/); assert.match(source, /row\.explanation/);
+console.log("Inventory Position Settings and Project Health integration tests passed.");

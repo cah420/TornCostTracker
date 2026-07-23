@@ -18,9 +18,17 @@ import { CoverageIntelligence } from "../services/history/coverage-intelligence-
 import { RawLogExporter, validateExportFilters } from "../services/history/raw-log-export-service.js";
 import { AccountingProjection } from "../services/history/accounting-projection-service.js";
 import { AccountingLedger } from "../services/history/accounting-ledger-service.js";
+import { CostLots } from "../services/history/cost-lot-service.js";
+import { FifoConsumption } from "../services/history/fifo-service.js";
+import { InventoryPositions } from "../services/history/inventory-position-service.js";
+import { PurchasesQueries } from "../services/purchases/purchases-query-service.js";
 
 function formatArchiveTime(timestamp){
   return timestamp ? new Date(Number(timestamp) * 1000).toLocaleString() : "Not archived yet";
+}
+function formatHistogram(values = {}, limit = null){
+  const rows = Object.entries(values).sort((left, right) => Number(right[1]) - Number(left[1]) || left[0].localeCompare(right[0]));
+  return (limit ? rows.slice(0, limit) : rows).map(([name, count]) => `${name} ${count}`).join(" · ") || "None";
 }
 let archiveProgressListener = null;
 let canonicalProgressListener = null;
@@ -124,6 +132,36 @@ export default {
         </div>
       </section>
       <section class="settings-raw-log-archive">
+        <h3>Cost Lot Foundation</h3>
+        <p>Rebuildable, read-only lot groups and acquisition lots derived only from Accounting Ledger. No lots are consumed, and this does not change current Purchases, inventory, FIFO, cost basis, or valuation.</p>
+        <div id="costLotStatus" class="settings-archive-status" aria-live="polite">Checking Cost Lot diagnostics...</div>
+        <div class="settings-archive-actions">
+          <button id="rebuildCostLotsBtn" class="api-key-save" type="button">Run / Rebuild Cost Lots</button>
+          <button id="refreshCostLotsBtn" type="button">Refresh Cost Lot Diagnostics</button>
+        </div>
+        <div id="costLotInspection" class="settings-catalog-results" aria-live="polite"></div>
+      </section>
+      <section class="settings-raw-log-archive">
+        <h3>FIFO Consumption Engine</h3>
+        <p>Rebuildable, read-only disposal demand and immutable FIFO allocation records derived from Accounting Ledger and Cost Lots. Original lots are never changed, and this does not replace current Purchases, inventory, legacy FIFO, cost basis, or valuation.</p>
+        <div id="fifoStatus" class="settings-archive-status" aria-live="polite">Checking FIFO diagnostics...</div>
+        <div class="settings-archive-actions">
+          <button id="rebuildFifoBtn" class="api-key-save" type="button">Run / Rebuild FIFO</button>
+          <button id="refreshFifoBtn" type="button">Refresh FIFO Diagnostics</button>
+        </div>
+        <div id="fifoInspection" class="settings-catalog-results" aria-live="polite"></div>
+      </section>
+      <section class="settings-raw-log-archive">
+        <h3>Inventory Position Projection</h3>
+        <p>Rebuildable, read-only historical inventory positions aggregated only from immutable Cost Lots and FIFO Consumptions. This projection is not authoritative inventory and does not change current Items, Purchases, cost basis, or valuation.</p>
+        <div id="inventoryPositionStatus" class="settings-archive-status" aria-live="polite">Checking Inventory Position diagnostics...</div>
+        <div class="settings-archive-actions">
+          <button id="rebuildInventoryPositionBtn" class="api-key-save" type="button">Run / Rebuild Inventory Position</button>
+          <button id="refreshInventoryPositionBtn" type="button">Refresh Position Diagnostics</button>
+        </div>
+        <div id="inventoryPositionInspection" class="settings-catalog-results" aria-live="polite"></div>
+      </section>
+      <section class="settings-raw-log-archive">
         <h3>Project Health &amp; Coverage Intelligence</h3>
         <p>Read-only archive, parser, replay, signature, and canonical-event measurements. These metrics guide parser work and never alter raw logs or accounting.</p>
         <div id="coverageIntelligenceStatus" class="settings-archive-status" aria-live="polite">Calculating project health...</div>
@@ -177,6 +215,18 @@ export default {
     const accountingLedgerStatus = document.getElementById("accountingLedgerStatus");
     const rebuildAccountingLedgerButton = document.getElementById("rebuildAccountingLedgerBtn");
     const refreshAccountingLedgerButton = document.getElementById("refreshAccountingLedgerBtn");
+    const costLotStatus = document.getElementById("costLotStatus");
+    const costLotInspection = document.getElementById("costLotInspection");
+    const rebuildCostLotsButton = document.getElementById("rebuildCostLotsBtn");
+    const refreshCostLotsButton = document.getElementById("refreshCostLotsBtn");
+    const fifoStatus = document.getElementById("fifoStatus");
+    const fifoInspection = document.getElementById("fifoInspection");
+    const rebuildFifoButton = document.getElementById("rebuildFifoBtn");
+    const refreshFifoButton = document.getElementById("refreshFifoBtn");
+    const inventoryPositionStatus = document.getElementById("inventoryPositionStatus");
+    const inventoryPositionInspection = document.getElementById("inventoryPositionInspection");
+    const rebuildInventoryPositionButton = document.getElementById("rebuildInventoryPositionBtn");
+    const refreshInventoryPositionButton = document.getElementById("refreshInventoryPositionBtn");
     const coverageIntelligenceStatus = document.getElementById("coverageIntelligenceStatus");
     const coverageIntelligenceRows = document.getElementById("coverageIntelligenceRows");
     const refreshCoverageIntelligenceButton = document.getElementById("refreshCoverageIntelligenceBtn");
@@ -253,17 +303,79 @@ Replay status: ${info.replayRunning ? "Running" : "Idle"}`;
       rebuildAccountingLedgerButton.disabled = AccountingLedger.running;
       return diagnostics;
     };
+    const refreshCostLots = async () => {
+      const database = await Database.initialize();
+      if (!database.available) { costLotStatus.textContent = "Cost Lot Foundation requires the available local SQLite archive."; rebuildCostLotsButton.disabled = true; return null; }
+      const diagnostics = await CostLots.diagnostics(); const metrics = diagnostics.metrics;
+      costLotStatus.textContent = `Health: ${diagnostics.health} · Cost Lot version: ${diagnostics.costLotVersion} · Source Ledger version: ${diagnostics.sourceLedgerVersion}\nLatest run: ${diagnostics.latestRun ? `${diagnostics.latestRun.status} · ${metrics.ledgerTransactionsExamined} ledger transactions · ${metrics.durationMilliseconds}ms` : "Not run"}\nSource dispositions: ${Object.entries(metrics.byDisposition ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nStorage: ${diagnostics.stored.groups} lot groups · ${diagnostics.stored.lots} cost lots · ${diagnostics.stored.dispositions} source dispositions\nLots: ${metrics.openLots} open · ${metrics.deferredLots} deferred · ${metrics.lotsWithUid} with UID · ${metrics.lotsWithoutUid} without UID · ${metrics.lotErrors} errors\nQuantity: original ${metrics.originalQuantity} · remaining ${metrics.remainingQuantity} · consumed ${metrics.consumedQuantity} · source eligible ${metrics.eligibleSourceQuantity}\nBasis: known ${metrics.knownBasisTotal} · allocated ${metrics.allocatedBasisTotal} · unallocated ${metrics.unallocatedBasisTotal}\nCoverage: source disposition ${metrics.sourceDispositionCoveragePercent}% · inventory entry ${metrics.inventoryEntryCoveragePercent}% · basis known ${metrics.basisKnownCoveragePercent}% · fully allocated ${metrics.fullyAllocatedCoveragePercent}% · FIFO-ready ${metrics.fifoReadyCoveragePercent}% · deferred ${metrics.deferredAllocationRatePercent}%\nReconciliation: source ${metrics.sourceDispositionReconciliationBalanced ? "balanced" : "not established"} · quantity ${metrics.quantityReconciliationBalanced ? "balanced" : "not established"} · basis ${metrics.basisReconciliationBalanced ? "balanced" : "not established"}\nGroup statuses: ${Object.entries(metrics.byGroupStatus ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nLot basis statuses: ${Object.entries(metrics.byLotBasisStatus ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nLot allocation statuses: ${Object.entries(metrics.byLotAllocationStatus ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nDeferred reasons: ${Object.entries(metrics.deferredReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nDiagnostics: ${Object.entries(metrics.diagnosticReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nUnresolved reasons: ${Object.entries(metrics.unresolvedReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nLot errors: ${Object.entries(metrics.lotErrorReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}`;
+      costLotInspection.textContent = `Recent Lot Groups\n${diagnostics.groups.map((group) => `${formatArchiveTime(group.eventTimestamp)} · ${group.groupType} · ${group.lotCount} lots / ${group.originalTotalQuantity} units · ${group.groupStatus} · ${group.basisStatus} · ${group.allocationStatus} · ${group.id} -> ${group.sourceLedgerTransactionId}`).join("\n") || "No lot groups stored."}\n\nRecent Cost Lots\n${diagnostics.lots.map((lot) => `${formatArchiveTime(lot.acquisitionTimestamp)} · item ${lot.itemId}${lot.itemUid ? ` · UID ${lot.itemUid}` : ""} · ${lot.originalQuantity} original / ${lot.remainingQuantity} remaining · ${lot.lotStatus} · ${lot.basisStatus} · ${lot.allocationStatus} · ${lot.allocatedBasis ?? "unknown"} basis · ${lot.id} -> ${lot.lotGroupId} -> ${lot.sourceLedgerLineId}`).join("\n") || "No cost lots stored."}\n\nLot Error Diagnostics\n${diagnostics.errors.map((row) => `${row.reasonCode} · ${row.sourceLedgerTransactionId}`).join("\n") || "No lot errors."}\n\nUnresolved Sources\n${diagnostics.unresolved.map((row) => `${row.reasonCode} · ${row.sourceLedgerTransactionId}`).join("\n") || "No unresolved sources."}`;
+      rebuildCostLotsButton.disabled = CostLots.running; return diagnostics;
+    };
+    const refreshFifo = async () => {
+      const database = await Database.initialize();
+      if (!database.available) { fifoStatus.textContent = "FIFO Consumption requires the available local SQLite archive."; rebuildFifoButton.disabled = true; return null; }
+      const diagnostics = await FifoConsumption.diagnostics(); const metrics = diagnostics.metrics;
+      fifoStatus.textContent = `Health: ${diagnostics.health} · FIFO version: ${diagnostics.fifoVersion} · Cost Lot version: ${diagnostics.sourceCostLotVersion} · Ledger version: ${diagnostics.sourceLedgerVersion}\nLatest run: ${diagnostics.latestRun ? `${diagnostics.latestRun.status} · ${metrics.ledgerTransactionsExamined} ledger transactions · ${metrics.durationMilliseconds}ms` : "Not run"}\nSource dispositions: ${Object.entries(metrics.byDisposition ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nStorage: ${diagnostics.stored.demands} demands · ${diagnostics.stored.consumptions} consumptions · ${diagnostics.stored.dispositions} dispositions · ${diagnostics.stored.diagnostics} diagnostics\nDemand: ${metrics.disposalTransactionsEligible} transactions · ${metrics.disposalDemandsGenerated} rows · ${metrics.disposalQuantityDemanded} quantity · ${metrics.disposalQuantityMatched} matched · ${metrics.disposalQuantityUnmatched} unmatched\nLots: ${metrics.lotsTouched} touched · ${metrics.lotsFullyConsumed} fully consumed · ${metrics.lotsPartiallyConsumed} partially consumed · ${metrics.lotsUntouched} untouched · ${metrics.derivedRemainingQuantity} derived remaining\nMatches: ${metrics.exactUidMatches} exact UID / ${metrics.exactUidMatchedQuantity} quantity · ${metrics.fungibleMatches} fungible / ${metrics.fungibleMatchedQuantity} quantity\nBasis: ${metrics.knownConsumedBasis} known consumed · ${metrics.basisReadyConsumptionQuantity} basis-ready quantity · ${metrics.deferredBasisConsumptionQuantity} deferred-basis quantity\nCoverage: source ${metrics.sourceDispositionCoveragePercent}% · demand ${metrics.disposalDemandCoveragePercent}% · quantity match ${metrics.quantityMatchCoveragePercent}% · lot consumption ${metrics.lotQuantityConsumptionRatePercent}% · basis ready ${metrics.basisReadyConsumptionCoveragePercent}% · UID exact ${metrics.uidExactMatchCoveragePercent}% · historical availability ${metrics.historicalAvailabilityCoveragePercent}%\nReconciliation: source ${metrics.sourceDispositionReconciliationBalanced ? "balanced" : "failed"} · demand ${metrics.disposalDemandReconciliationBalanced ? "balanced" : "failed"} · global disposal ${metrics.globalDisposalReconciliationBalanced ? "balanced" : "failed"} · match ${metrics.matchReconciliationBalanced ? "balanced" : "failed"} · lot ${metrics.lotReconciliationBalanced ? "balanced" : "failed"} · basis ${metrics.basisReconciliationBalanced ? "balanced" : "failed"} · order ${metrics.orderingReconciliationBalanced ? "balanced" : "failed"}\nInsufficient inventory: ${Object.entries(metrics.insufficientReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nUnresolved: ${Object.entries(metrics.unresolvedReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}\nFIFO errors: ${Object.entries(metrics.fifoErrorReasons ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}`;
+      fifoInspection.textContent = `Recent Disposal Demands\n${diagnostics.demands.map((row) => `${formatArchiveTime(row.disposalTimestamp)} · item ${row.itemId}${row.itemUid ? ` · UID ${row.itemUid}` : ""} · ${row.originalDemandQuantity} demand / ${row.matchedQuantity} matched / ${row.unmatchedQuantity} unmatched · ${row.demandStatus} · ${row.id} -> ${row.sourceLedgerTransactionId}`).join("\n") || "No FIFO demands stored."}\n\nRecent Consumptions\n${diagnostics.consumptions.map((row) => `${formatArchiveTime(row.disposalTimestamp)} · item ${row.itemId}${row.itemUid ? ` · UID ${row.itemUid}` : ""} · ${row.consumedQuantity} consumed · ${row.consumedAllocatedBasis ?? "basis deferred"} · ${row.matchType} · lot ${row.sourceLotId} -> demand ${row.disposalDemandId} -> disposal ${row.sourceDisposalLedgerTransactionId}`).join("\n") || "No FIFO consumptions stored."}\n\nDerived Lot States\n${diagnostics.lotStates.map((row) => `${formatArchiveTime(row.acquisitionTimestamp)} · item ${row.itemId}${row.itemUid ? ` · UID ${row.itemUid}` : ""} · ${row.originalQuantity} original / ${row.consumedQuantity} consumed / ${row.derivedRemainingQuantity} remaining · ${row.derivedState} · ${row.basisStatus} · ${row.sourceLotId}`).join("\n") || "No Cost Lots available."}\n\nFIFO Diagnostics\n${diagnostics.diagnostics.map((row) => `${row.diagnosticType} · ${row.reasonCode} · item ${row.itemId ?? "—"} · quantity ${row.quantityContext ?? "—"} · ${row.sourceLedgerTransactionId ?? "no source"}`).join("\n") || "No FIFO diagnostics."}`;
+      rebuildFifoButton.disabled = FifoConsumption.running; return diagnostics;
+    };
+    const refreshInventoryPosition = async () => {
+      const database = await Database.initialize();
+      if (!database.available) { inventoryPositionStatus.textContent = "Inventory Position requires the available local SQLite archive."; rebuildInventoryPositionButton.disabled = true; return null; }
+      const diagnostics = await InventoryPositions.diagnostics(); const metrics = diagnostics.metrics;
+      inventoryPositionStatus.textContent = `Health: ${diagnostics.health} · Position version: ${diagnostics.positionVersion} · Cost Lot version: ${diagnostics.sourceCostLotVersion} · FIFO version: ${diagnostics.sourceFifoVersion} · Ledger version: ${diagnostics.sourceLedgerVersion ?? "—"} · Projection version: ${diagnostics.sourceProjectionVersion ?? "—"}
+Classification calibration: ${diagnostics.classificationCalibrationAvailable ? "RC1 metrics available" : "Rebuild required for RC1 explanations and histograms"}
+Latest run: ${diagnostics.latestRun ? `${diagnostics.latestRun.status} · ${metrics.lotsExamined} lots / ${metrics.consumptionsExamined} consumptions · ${metrics.durationMilliseconds}ms` : "Not run"}
+Storage: ${diagnostics.stored.positions} positions · ${diagnostics.stored.diagnostics} diagnostics
+Positions: ${metrics.positionsGenerated} generated · ${metrics.positionsInserted} inserted · ${metrics.existingPositions} existing · ${metrics.healthyPositions} healthy · ${metrics.warningPositions} warning · ${metrics.unhealthyPositions} unhealthy
+Quantity: ${metrics.originalQuantity} original · ${metrics.consumedQuantity} consumed · ${metrics.remainingQuantity} remaining · ${metrics.knownQuantity} known · ${metrics.deferredQuantity} deferred · ${metrics.unknownQuantity} unknown
+Basis: ${metrics.knownOriginalBasis} known original · ${metrics.knownConsumedBasis} known consumed · ${metrics.knownBasis} known remaining · projected total ${metrics.remainingBasis ?? "incomplete"} · ${metrics.deferredBasisPositions} positions with incomplete basis
+Categories: ${metrics.fifoReadyQuantity} FIFO-ready · ${metrics.uidQuantity} UID · ${metrics.fungibleQuantity} fungible
+Lot states: ${metrics.openLots} open · ${metrics.partiallyConsumedLots} partial · ${metrics.fullyConsumedLots} closed
+Statuses: ${Object.entries(metrics.byStatus ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}
+Health: ${Object.entries(metrics.byHealth ?? {}).map(([name, count]) => `${name} ${count}`).join(" · ") || "None"}
+Confidence: average ${metrics.averageConfidence}% · median ${metrics.medianConfidence}% · range ${metrics.lowestConfidence}-${metrics.highestConfidence}%
+Confidence histogram: ${Object.entries(metrics.confidenceDistribution ?? {}).map(([name, count]) => `${name}% ${count}`).join(" · ") || "None"}
+Warning reasons: ${formatHistogram(metrics.warningReasonHistogram)}
+Warning combinations: ${formatHistogram(metrics.warningCombinationHistogram)}
+UNKNOWN reasons: ${formatHistogram(metrics.unknownReasonHistogram)}
+Status reasons: ${formatHistogram(metrics.statusReasonHistogram)}
+Classification rules: ${formatHistogram(metrics.classificationRuleHistogram)}
+Unassigned historical evidence: ${formatHistogram(metrics.unassignedEvidenceHistogram)}
+Confidence deductions: ${Object.entries(metrics.confidenceDeductionStats ?? {}).map(([name, stats]) => `${name} ${stats.occurrences} occurrences · avg -${stats.averageDeduction} · max -${stats.maximumDeduction}`).join(" · ") || "None"}
+Deduction combinations: ${formatHistogram(metrics.confidenceDeductionCombinationHistogram)}
+Reconciliation: quantity ${metrics.quantityReconciliationBalanced ? "balanced" : "failed"} · basis ${metrics.basisReconciliationBalanced ? "balanced" : "failed"} · lots ${metrics.lotReconciliationBalanced ? "balanced" : "failed"} · source ${metrics.sourceReconciliationBalanced ? "balanced" : "failed"} · positions ${metrics.positionReconciliationBalanced ? "balanced" : "failed"}`;
+      inventoryPositionInspection.textContent = `Inventory Positions
+${diagnostics.positions.map((row) => `${row.itemName} · item ${row.itemId}${row.itemUid ? ` · UID ${row.itemUid}` : " · fungible"} · ${row.originalQuantity} original / ${row.consumedQuantity} consumed / ${row.remainingQuantity} remaining · ${row.originalBasis ?? "basis incomplete"} original basis / ${row.consumedBasis ?? "basis incomplete"} consumed / ${row.remainingBasis ?? "basis incomplete"} remaining · ${row.knownQuantity} known / ${row.deferredQuantity} deferred / ${row.unknownQuantity} unknown · lots ${row.openLotCount} open / ${row.partiallyConsumedLotCount} partial / ${row.fullyConsumedLotCount} closed
+  Status: ${row.explanation?.status?.value ?? row.positionStatus} — ${row.explanation?.status?.summary ?? "No explanation available."} [${row.explanation?.status?.reasons?.join(", ") || "none"}]
+  Health: ${row.explanation?.health?.value ?? row.positionHealth} — ${row.explanation?.health?.summary ?? "No explanation available."} [${row.explanation?.health?.reasons?.join(", ") || "none"}]
+  Confidence: ${row.positionConfidence}% · ${Object.entries(row.confidenceDeductions ?? {}).map(([reason, amount]) => `${reason} -${amount}`).join(" · ") || "no deductions"}
+  Reasons: ${row.explanation?.reasons?.map((reason) => `${reason.code}: ${reason.message}`).join(" | ") || "None"}
+  Trace: ${row.id} -> Cost Lots ${row.firstSourceLotId} … ${row.lastSourceLotId} -> FIFO / Ledger / Projection / Canonical references available through Position trace`).join("\n\n") || "No Inventory Positions stored."}
+
+Position Diagnostics
+${diagnostics.diagnostics.map((row) => `${row.reasonCode} · item ${row.itemId ?? "—"}${row.itemUid ? ` · UID ${row.itemUid}` : ""} · quantity ${row.supportingQuantity ?? "—"} · basis ${row.supportingBasis ?? "—"} · ${row.positionId ?? "no position"}`).join("\n") || "No Position diagnostics."}`;
+      rebuildInventoryPositionButton.disabled = InventoryPositions.running; return diagnostics;
+    };
     const refreshCoverageIntelligence = async () => {
       const database = await Database.initialize();
       if (!database.available) { coverageIntelligenceStatus.textContent = "Project Health requires the available local SQLite archive."; refreshCoverageIntelligenceButton.disabled = true; return; }
       const dashboard = await CoverageIntelligence.dashboard({ includeLegacyItemMarketProfile: true }); const metrics = dashboard.metrics;
       const ledger = await AccountingLedger.diagnostics();
-      coverageIntelligenceStatus.textContent = `Health: Archive ${dashboard.health.archiveIntegrity} · Warehouse ${dashboard.health.rawWarehouse} · Replay ${dashboard.health.replay} · Coverage ${dashboard.health.coverage} · Ledger ${ledger.health}`;
+      const costLots = await CostLots.diagnostics({ inspectionLimit: 1 });
+      const fifo = await FifoConsumption.diagnostics({ inspectionLimit: 1 });
+      const inventoryPosition = await InventoryPositions.diagnostics({ inspectionLimit: 1 });
+      const purchasesConsumer = await PurchasesQueries.health();
+      coverageIntelligenceStatus.textContent = `Health: Archive ${dashboard.health.archiveIntegrity} · Warehouse ${dashboard.health.rawWarehouse} · Replay ${dashboard.health.replay} · Coverage ${dashboard.health.coverage} · Ledger ${ledger.health} · Cost Lots ${costLots.health} · FIFO ${fifo.health} · Position ${inventoryPosition.health} · Purchases ${purchasesConsumer.healthState}`;
       const replay = dashboard.latestSnapshot?.replay;
       coverageIntelligenceRows.textContent = `Archive Overview\nObserved types: ${metrics.observedTypes} · Records: ${metrics.observedRecords} · Signatures: ${metrics.observedSignatures}\nFully supported: ${metrics.fullySupportedTypes} types / ${metrics.fullySupportedRecords} records\nPartial: ${metrics.partiallySupportedTypes} types / ${metrics.partiallySupportedRecords} records\nUnsupported: ${metrics.unsupportedTypes} types / ${metrics.unsupportedRecords} records\nSignature coverage: ${metrics.supportedSignatures}/${metrics.observedSignatures} parsed · ${metrics.unsupportedSignatures} unsupported\nCanonical events: ${metrics.canonicalEvents} across ${metrics.canonicalEventTypes} event types · Registered parsers: ${metrics.parserCount}\nLatest replay: ${replay ? `${replay.replayed} read · ${replay.generated} generated · ${replay.unsupported} unsupported · ${replay.errors} errors · ${replay.durationMilliseconds ?? "—"}ms` : "No coverage snapshot yet"}\n\nParser Families\n${dashboard.families.map((family) => `${family.family}: ${family.parserCount} parsers · ${family.observedTypes} types · ${family.observedRecords} records (${family.coveragePercent}% of archive)`).join("\n") || "No registered parser families."}\n\nHighest Impact Unsupported / Partial Types\n${dashboard.highestImpactUnsupported.map((row) => `${row.logTypeId} — ${row.title}: ${row.status} · ${row.observedCount} records · ${row.observedSignatures} signatures · ${row.family}`).join("\n") || "No unsupported observed types."}`;
       const legacyItemMarket = dashboard.legacyItemMarket;
       if (legacyItemMarket) coverageIntelligenceRows.textContent += `\n\nLegacy Item Market Purchase (1103)\nArchived: ${legacyItemMarket.totalRecords} · Accepted: ${legacyItemMarket.acceptedRecords} · Rejected: ${legacyItemMarket.rejectedRecords} · Coverage: ${legacyItemMarket.recordCoveragePercent}%\nStatus: ${legacyItemMarket.parserStatus} · Canonical events stored: ${legacyItemMarket.generatedCanonicalEvents}\nSignatures accepted/rejected: ${legacyItemMarket.acceptedSignatures.length}/${legacyItemMarket.rejectedSignatures.length} · Item rows: ${legacyItemMarket.minimumItemRows ?? "—"}-${legacyItemMarket.maximumItemRows}\nUnusual records: multiple rows ${legacyItemMarket.recordsWithMultipleItemRows} · quantity > 1 rows ${legacyItemMarket.rowsWithQuantityGreaterThanOne} · duplicate item IDs ${legacyItemMarket.recordsWithDuplicateItemIds} · duplicate UIDs ${legacyItemMarket.recordsWithDuplicateUids}\nCost: ${legacyItemMarket.minimumCost ?? "—"}-${legacyItemMarket.maximumCost ?? "—"} · invalid ${legacyItemMarket.invalidCost} · Seller missing/null: ${legacyItemMarket.sellerMissing}/${legacyItemMarket.sellerNull}${legacyItemMarket.rejectionReasons.length ? `\nRejected reasons: ${legacyItemMarket.rejectionReasons.map((reason) => `${reason.value} (${reason.count})`).join(" · ")}` : ""}`;
       coverageIntelligenceRows.textContent += `\n\nAccounting Ledger\nHealth: ${ledger.health} · Ledger v${ledger.ledgerVersion} over Projection v${ledger.projectionVersion}\nStored: ${ledger.stored.transactions} transactions · ${ledger.stored.lines} lines · ${ledger.accounts.length} controlled accounts\nLatest reconciliation: ${ledger.metrics.reconciliationBalanced ? "balanced" : "not established"} · Posted ${ledger.metrics.posted} · Deferred ${ledger.metrics.deferred} · Unresolved ${ledger.metrics.unresolved} · Errors ${ledger.metrics.ledgerErrors}`;
+      coverageIntelligenceRows.textContent += `\n\nCost Lot Foundation\nHealth: ${costLots.health} · Cost Lot v${costLots.costLotVersion} over Ledger v${costLots.sourceLedgerVersion}\nStored: ${costLots.stored.groups} groups · ${costLots.stored.lots} lots · ${costLots.stored.dispositions} source dispositions\nLots: ${costLots.metrics.openLots} open · ${costLots.metrics.deferredLots} deferred · ${costLots.metrics.unresolvedTransactions} unresolved sources · ${costLots.metrics.lotErrors} errors\nReconciliation: source ${costLots.metrics.sourceDispositionReconciliationBalanced ? "balanced" : "not established"} · quantity ${costLots.metrics.quantityReconciliationBalanced ? "balanced" : "not established"} · basis ${costLots.metrics.basisReconciliationBalanced ? "balanced" : "not established"}`;
+      coverageIntelligenceRows.textContent += `\n\nFIFO Consumption Engine\nHealth: ${fifo.health} · FIFO v${fifo.fifoVersion} over Cost Lot v${fifo.sourceCostLotVersion} / Ledger v${fifo.sourceLedgerVersion}\nStored: ${fifo.stored.demands} demands · ${fifo.stored.consumptions} consumptions · ${fifo.stored.dispositions} source dispositions\nQuantity: ${fifo.metrics.disposalQuantityDemanded} demanded · ${fifo.metrics.disposalQuantityMatched} matched · ${fifo.metrics.disposalQuantityUnmatched} unmatched · ${fifo.metrics.derivedRemainingQuantity} derived remaining\nReconciliation: source ${fifo.metrics.sourceDispositionReconciliationBalanced ? "balanced" : "not established"} · demand ${fifo.metrics.disposalDemandReconciliationBalanced ? "balanced" : "not established"} · match ${fifo.metrics.matchReconciliationBalanced ? "balanced" : "not established"} · lot ${fifo.metrics.lotReconciliationBalanced ? "balanced" : "not established"} · basis ${fifo.metrics.basisReconciliationBalanced ? "balanced" : "not established"} · order ${fifo.metrics.orderingReconciliationBalanced ? "balanced" : "not established"}`;
+      coverageIntelligenceRows.textContent += `\n\nInventory Position Projection\nHealth: ${inventoryPosition.health} · Position v${inventoryPosition.positionVersion} over Cost Lot v${inventoryPosition.sourceCostLotVersion} / FIFO v${inventoryPosition.sourceFifoVersion}\nStored: ${inventoryPosition.stored.positions} positions · ${inventoryPosition.stored.diagnostics} diagnostics\nQuantity: ${inventoryPosition.metrics.remainingQuantity} remaining · ${inventoryPosition.metrics.knownQuantity} known · ${inventoryPosition.metrics.deferredQuantity} deferred · ${inventoryPosition.metrics.unknownQuantity} unknown\nBasis: ${inventoryPosition.metrics.knownBasis} known remaining · projected total ${inventoryPosition.metrics.remainingBasis ?? "incomplete"} · ${inventoryPosition.metrics.deferredBasisPositions} positions incomplete\nHealth: ${inventoryPosition.metrics.healthyPositions} healthy · ${inventoryPosition.metrics.warningPositions} warning · ${inventoryPosition.metrics.unhealthyPositions} unhealthy\nConfidence: average ${inventoryPosition.metrics.averageConfidence}% · median ${inventoryPosition.metrics.medianConfidence}% · range ${inventoryPosition.metrics.lowestConfidence}-${inventoryPosition.metrics.highestConfidence}% · ${Object.entries(inventoryPosition.metrics.confidenceDistribution ?? {}).map(([name, count]) => `${name}% ${count}`).join(" / ")}\nTop warnings: ${formatHistogram(inventoryPosition.metrics.warningReasonHistogram, 5)}\nTop UNKNOWN reasons: ${formatHistogram(inventoryPosition.metrics.unknownReasonHistogram, 5)}\nDeferred/unknown basis: ${inventoryPosition.metrics.warningReasonHistogram?.deferred_basis ?? 0}/${inventoryPosition.metrics.warningReasonHistogram?.unknown_basis ?? 0} · UID ambiguity ${inventoryPosition.metrics.warningReasonHistogram?.uid_ambiguity ?? 0} · Historical shortfall ${inventoryPosition.metrics.warningReasonHistogram?.historical_shortfall ?? 0}\nUnassigned historical evidence: ${formatHistogram(inventoryPosition.metrics.unassignedEvidenceHistogram, 5)}\nReconciliation: quantity ${inventoryPosition.metrics.quantityReconciliationBalanced ? "balanced" : "not established"} · basis ${inventoryPosition.metrics.basisReconciliationBalanced ? "balanced" : "not established"} · lots ${inventoryPosition.metrics.lotReconciliationBalanced ? "balanced" : "not established"} · source ${inventoryPosition.metrics.sourceReconciliationBalanced ? "balanced" : "not established"}`;
+      coverageIntelligenceRows.textContent += `\n\nPurchases Read Model\nHealth: ${purchasesConsumer.healthState} · Source: SQLite Inventory Position v${purchasesConsumer.positionVersion} / Cost Lot v${purchasesConsumer.costLotVersion} / FIFO v${purchasesConsumer.fifoVersion}\nPosition run: ${purchasesConsumer.positionRunAvailable ? "available" : "missing"} · version compatibility: ${purchasesConsumer.versionCompatible ? "compatible" : "incompatible"}\nReady: ${purchasesConsumer.ready ? "yes" : "no"}${purchasesConsumer.reason ? ` · ${purchasesConsumer.reason}` : ""}\nRemaining positions: ${purchasesConsumer.remainingPositions} · incomplete basis positions: ${purchasesConsumer.incompletePositions}\nLast query: ${purchasesConsumer.lastDurationMs === null ? "not run" : `${Math.round(purchasesConsumer.lastDurationMs)}ms / ${purchasesConsumer.lastResultCount} rows`} · errors: ${purchasesConsumer.lastError ?? "none"}\nLegacy purchase-accounting cache reads: ${purchasesConsumer.legacyAccountingCacheReads}`;
       refreshCoverageIntelligenceButton.disabled = false;
     };
     const refreshLogTypeCoverage = async () => {
@@ -353,6 +465,43 @@ Replay status: ${info.replayRunning ? "Running" : "Idle"}`;
       void AccountingLedger.rebuild({ onProgress: (update) => { accountingLedgerStatus.textContent = `Accounting Ledger ${update.status}: ${update.projectionsExamined ?? 0} projections · ${update.posted ?? 0} posted · ${update.deferred ?? 0} deferred · ${update.unresolved ?? 0} unresolved · ${update.ledgerErrors ?? 0} errors`; } }).catch((error) => { accountingLedgerStatus.textContent = `Accounting Ledger failed: ${error.message}`; }).finally(() => void refreshAccountingLedger());
     });
     refreshAccountingLedgerButton.addEventListener("click", () => void refreshAccountingLedger().catch((error) => { accountingLedgerStatus.textContent = `Accounting Ledger unavailable: ${error.message}`; }));
+    rebuildCostLotsButton.addEventListener("click", () => {
+      rebuildCostLotsButton.disabled = true; costLotStatus.textContent = "Cost Lot rebuild preparing...";
+      void CostLots.rebuild({ onProgress: (update) => { costLotStatus.textContent = `Cost Lots ${update.phase}: ${update.ledgerTransactionsExamined ?? 0} ledger transactions · ${update.lotGroupsGenerated ?? 0} groups · ${update.costLotsGenerated ?? 0} lots · ${update.deferredLots ?? 0} deferred · ${update.lotErrors ?? 0} errors`; } }).catch((error) => { costLotStatus.textContent = `Cost Lot rebuild failed: ${error.message}`; }).finally(() => void refreshCostLots());
+    });
+    refreshCostLotsButton.addEventListener("click", () => void refreshCostLots().catch((error) => { costLotStatus.textContent = `Cost Lot diagnostics unavailable: ${error.message}`; }));
+    rebuildFifoButton.addEventListener("click", () => {
+      rebuildFifoButton.disabled = true; fifoStatus.textContent = "FIFO rebuild preparing...";
+      void (async () => {
+        try {
+          await FifoConsumption.rebuild({ onProgress: (update) => { fifoStatus.textContent = `FIFO ${update.phase}: ${update.ledgerTransactionsExamined ?? 0} ledger transactions · ${update.disposalDemandsGenerated ?? 0} demands · ${update.consumptionRecordsGenerated ?? 0} consumptions · ${update.disposalQuantityUnmatched ?? 0} unmatched · ${update.fifoErrors ?? 0} errors`; } });
+        } catch (error) {
+          fifoStatus.textContent = `FIFO rebuild failed: ${error.message}`;
+          rebuildFifoButton.disabled = FifoConsumption.running;
+          return;
+        }
+        fifoStatus.textContent = "FIFO rebuild complete. Loading the saved summary...";
+        try { await refreshFifo(); }
+        catch (error) { fifoStatus.textContent = `FIFO rebuild completed, but its summary could not be loaded: ${error.message}`; }
+        finally { rebuildFifoButton.disabled = FifoConsumption.running; }
+      })();
+    });
+    refreshFifoButton.addEventListener("click", () => void refreshFifo().catch((error) => { fifoStatus.textContent = `FIFO diagnostics unavailable: ${error.message}`; }));
+    rebuildInventoryPositionButton.addEventListener("click", () => {
+      rebuildInventoryPositionButton.disabled = true; inventoryPositionStatus.textContent = "Inventory Position rebuild preparing...";
+      void (async () => {
+        try {
+          await InventoryPositions.rebuild({ onProgress: (update) => { inventoryPositionStatus.textContent = `Inventory Position ${update.phase}: ${update.lotsExamined ?? 0} lots · ${update.consumptionsExamined ?? 0} consumptions · ${update.positionsGenerated ?? 0} positions · ${update.unhealthyPositions ?? 0} unhealthy`; } });
+        } catch (error) {
+          inventoryPositionStatus.textContent = `Inventory Position rebuild failed: ${error.message}`; rebuildInventoryPositionButton.disabled = InventoryPositions.running; return;
+        }
+        inventoryPositionStatus.textContent = "Inventory Position rebuild complete. Loading the saved summary...";
+        try { await refreshInventoryPosition(); }
+        catch (error) { inventoryPositionStatus.textContent = `Inventory Position completed, but its summary could not be loaded: ${error.message}`; }
+        finally { rebuildInventoryPositionButton.disabled = InventoryPositions.running; }
+      })();
+    });
+    refreshInventoryPositionButton.addEventListener("click", () => void refreshInventoryPosition().catch((error) => { inventoryPositionStatus.textContent = `Inventory Position diagnostics unavailable: ${error.message}`; }));
     refreshCoverageIntelligenceButton.addEventListener("click", () => void refreshCoverageIntelligence().catch((error) => { coverageIntelligenceStatus.textContent = `Project Health unavailable: ${error.message}`; }));
     refreshLogTypeCatalogButton.addEventListener("click", () => void refreshTornLogTypeCatalog());
     refreshLogTypeCoverageButton.addEventListener("click", () => void refreshLogTypeCoverage().catch((error) => { logTypeCatalogStatus.textContent = `Coverage diagnostics failed: ${error.message}`; }));
@@ -390,6 +539,9 @@ Replay status: ${info.replayRunning ? "Running" : "Idle"}`;
     void refreshCanonicalEvents().catch((error) => { canonicalStatus.textContent = `Canonical diagnostics unavailable: ${error.message}`; replayCanonicalEventsButton.disabled = true; });
     void refreshAccountingProjection().catch((error) => { accountingProjectionStatus.textContent = `Accounting Projection unavailable: ${error.message}`; rebuildAccountingProjectionButton.disabled = true; });
     void refreshAccountingLedger().catch((error) => { accountingLedgerStatus.textContent = `Accounting Ledger unavailable: ${error.message}`; rebuildAccountingLedgerButton.disabled = true; });
+    void refreshCostLots().catch((error) => { costLotStatus.textContent = `Cost Lot diagnostics unavailable: ${error.message}`; rebuildCostLotsButton.disabled = true; });
+    void refreshFifo().catch((error) => { fifoStatus.textContent = `FIFO diagnostics unavailable: ${error.message}`; rebuildFifoButton.disabled = true; });
+    void refreshInventoryPosition().catch((error) => { inventoryPositionStatus.textContent = `Inventory Position diagnostics unavailable: ${error.message}`; rebuildInventoryPositionButton.disabled = true; });
     void refreshCoverageIntelligence().catch((error) => { coverageIntelligenceStatus.textContent = `Project Health unavailable: ${error.message}`; });
     void refreshLogTypeCoverage().catch((error) => { logTypeCatalogStatus.textContent = `Catalog coverage unavailable: ${error.message}`; });
     void refreshExport().catch((error) => { exportStatus.textContent = `Export unavailable: ${error.message}`; exportButton.disabled = true; });

@@ -27,11 +27,11 @@ export class ReplayService {
             for (const parser of parsers) {
               try {
                 const output = parser.parse({ sourceLogId: row.source_log_id, rawLog, context: { canonicalSchemaVersion: 1 } });
-                const stored = await this.events.storeResult({ sourceLogId: row.source_log_id, parserName: parser.name, parserVersion: parser.version, status: "processed", events: output });
+                const stored = await this.events.storeResult({ sourceLogId: row.source_log_id, parserName: parser.name, parserVersion: parser.version, supersedesParserNames: parser.supersedesParserNames ?? [], status: "processed", events: output });
                 generated += stored.inserted;
               } catch (error) {
                 const status = error instanceof UnsupportedVariantError ? "unsupported" : "error";
-                await this.events.storeResult({ sourceLogId: row.source_log_id, parserName: parser.name, parserVersion: parser.version, status, errorMessage: error.message });
+                await this.events.storeResult({ sourceLogId: row.source_log_id, parserName: parser.name, parserVersion: parser.version, supersedesParserNames: parser.supersedesParserNames ?? [], status, errorMessage: error.message });
                 if (status === "unsupported") unsupported += 1;
                 else errors += 1;
               }

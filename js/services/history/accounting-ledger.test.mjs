@@ -24,6 +24,11 @@ const reward = buildLedgerTransaction(projection({ id: "projection:1:reward", cl
 assert.equal(reward.transactionStatus, LedgerStatus.deferred);
 assert.equal(reward.debitTotal, 0);
 assert.equal(reward.lines[0].debitAmount, null);
+const nonCashAcquisition = buildLedgerTransaction(projection({ id: "projection:1:non-cash", classification: "non_cash_acquisition", movements: [{ category: "item_in", canonicalMovement: { resourceId: "6", quantity: 3, direction: "in", attributes: {} } }] }));
+assert.equal(nonCashAcquisition.transactionStatus, LedgerStatus.deferred);
+assert.equal(nonCashAcquisition.policyCode, "non-cash-acquisition");
+assert.equal(nonCashAcquisition.lines[0].itemId, "6");
+assert.equal(nonCashAcquisition.lines[0].quantity, 3);
 
 const transfer = buildLedgerTransaction(projection({ id: "projection:1:transfer", classification: "transfer_neutral", outcome: "neutral", movements: [{ category: "neutral_item_in", canonicalMovement: { resourceId: "5", quantity: 1, direction: "in", attributes: {} } }] }));
 assert.equal(transfer.transactionStatus, LedgerStatus.memorandum);

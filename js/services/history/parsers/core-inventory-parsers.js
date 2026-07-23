@@ -4,6 +4,7 @@ import { createItemConversionParser } from "./item-conversion-parser.js";
 import { createCashSaleParser } from "./cash-sale-parser.js";
 import { TransferParsers } from "./transfer-parser.js";
 import { LegacyItemMarketPurchaseParser } from "./legacy-item-market-purchase-parser.js";
+import { AcquisitionCoverageParsers } from "./acquisition-coverage-parser.js";
 
 function metadata(log){ return { logType: typeFor(log), title: titleFor(log), category: log.category ?? log.details?.category ?? null }; }
 function participant(role, entityType, entityId = null){ return entityId === null || entityId === undefined ? { role, entityType } : { role, entityType, entityId: String(entityId) }; }
@@ -70,17 +71,17 @@ export const TradeParser = Object.freeze({
   },
 });
 
-function reward({ name, logType, title, itemField = null, cashField = null, source }){
+function reward({ name, logType, title, itemField = null, cashField = null, source, basisPolicy = null }){
   return Object.freeze({ name, version: "1.0.0", family: "Reward", matches: (log) => typeFor(log) === logType && new RegExp(`^${title}$`, "i").test(titleFor(log)), parse({ sourceLogId, rawLog }) {
     const data = dataFor(rawLog); const movements = itemField ? itemMovements("in", data[itemField], "reward") : [];
     const cash = cashField ? number(data[cashField]) : null; if (cash !== null) movements.push({ direction: "in", resourceType: "cash", amount: cash, unit: "dollar", role: "reward", attributes: {} });
     if (!movements.length) throw new UnsupportedVariantError(`${name} has no supported reward movement.`);
-    return [createCanonicalEvent({ sourceLogId, eventTimestamp: Number(rawLog.timestamp), eventType: "reward", parserName: name, parserVersion: "1.0.0", counterparties: [participant("source", source)], movements, attributes: { mechanic: name }, sourceMetadata: metadata(rawLog) })];
+    return [createCanonicalEvent({ sourceLogId, eventTimestamp: Number(rawLog.timestamp), eventType: "reward", parserName: name, parserVersion: "1.0.0", counterparties: [participant("source", source)], movements, attributes: { mechanic: name, ...(basisPolicy ? { basisPolicy } : {}) }, sourceMetadata: metadata(rawLog) })];
   } });
 }
-export const CrimeItemRewardParser = reward({ name: "crime-item-reward", logType: 9020, title: "Crime success item gain \\(new\\)", itemField: "items_gained", source: "system" });
+export const CrimeItemRewardParser = reward({ name: "crime-item-reward", logType: 9020, title: "Crime success item gain \\(new\\)", itemField: "items_gained", source: "system", basisPolicy: "unknown" });
 export const CrimeCashRewardParser = reward({ name: "crime-cash-reward", logType: 9015, title: "Crime success money gain \\(new\\)", cashField: "money_gained", source: "system" });
-export const FactionItemRewardParser = reward({ name: "faction-item-receive", logType: 6733, title: "Faction give item receive", itemField: "item", source: "faction" });
-export const CityItemFindParser = reward({ name: "city-item-find", logType: 7011, title: "City item find", itemField: "item", source: "system" });
+export const FactionItemRewardParser = reward({ name: "faction-item-receive", logType: 6733, title: "Faction give item receive", itemField: "item", source: "faction", basisPolicy: "zero_cash" });
+export const CityItemFindParser = reward({ name: "city-item-find", logType: 7011, title: "City item find", itemField: "item", source: "system", basisPolicy: "zero_cash" });
 
-export const CoreInventoryParsers = Object.freeze([CityShopPurchaseParser, BazaarPurchaseParser, ItemMarketPurchaseParser, LegacyItemMarketPurchaseParser, LegacyBazaarPurchaseParser, AbroadPurchaseParser, GrenadeBoxConversionParser, MedicalBoxConversionParser, StashBoxConversionParser, LegacyItemMarketSaleParser, ItemMarketSaleParser, LegacyBazaarSaleParser, BazaarSaleParser, CityShopSaleParser, ...TransferParsers, TradeParser, CrimeItemRewardParser, CrimeCashRewardParser, FactionItemRewardParser, CityItemFindParser]);
+export const CoreInventoryParsers = Object.freeze([CityShopPurchaseParser, BazaarPurchaseParser, ItemMarketPurchaseParser, LegacyItemMarketPurchaseParser, LegacyBazaarPurchaseParser, AbroadPurchaseParser, GrenadeBoxConversionParser, MedicalBoxConversionParser, StashBoxConversionParser, LegacyItemMarketSaleParser, ItemMarketSaleParser, LegacyBazaarSaleParser, BazaarSaleParser, CityShopSaleParser, ...TransferParsers, TradeParser, CrimeItemRewardParser, CrimeCashRewardParser, FactionItemRewardParser, CityItemFindParser, ...AcquisitionCoverageParsers]);

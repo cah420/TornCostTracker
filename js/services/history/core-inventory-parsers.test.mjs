@@ -75,12 +75,17 @@ assert.deepEqual(
   "cash-sale events retain deterministic canonical IDs",
 );
 const legacyTransfer = registry.select(fixtures.legacyItemReceive)[0].parse({ sourceLogId: "legacy-transfer", rawLog: fixtures.legacyItemReceive })[0];
-assert.equal(legacyTransfer.eventType, "transfer");
+assert.equal(legacyTransfer.eventType, "gift_received");
 assert.equal(legacyTransfer.movements[0].direction, "in");
 assert.equal(legacyTransfer.movements[0].quantity, 2);
 assert.equal(legacyTransfer.counterparties[0].role, "sender");
 assert.equal(legacyTransfer.counterparties[0].entityId, "47");
-assert.equal(registry.select(fixtures.legacyItemReceive)[0].family, "Transfer");
+assert.equal(legacyTransfer.attributes.mechanic, "gift_received");
+assert.equal(legacyTransfer.attributes.basisPolicy, "zero_cash");
+assert.equal(registry.select(fixtures.legacyItemReceive)[0].family, "Reward");
+const legacyGiftWithUidLog = { ...fixtures.legacyItemReceive, data: { ...fixtures.legacyItemReceive.data, quantity: 1, uid: 123456 } };
+const legacyGiftWithUid = registry.select(legacyGiftWithUidLog)[0].parse({ sourceLogId: "legacy-gift-uid", rawLog: legacyGiftWithUidLog })[0];
+assert.equal(legacyGiftWithUid.movements[0].attributes.uid, "123456");
 const sentTransfer = registry.select(fixtures.itemSend)[0].parse({ sourceLogId: "send-transfer", rawLog: fixtures.itemSend })[0];
 assert.equal(sentTransfer.movements[0].direction, "out");
 assert.equal(sentTransfer.movements[0].attributes.uid, "12509402993");
@@ -88,6 +93,10 @@ assert.equal(sentTransfer.counterparties[0].role, "receiver");
 const receivedTransfer = registry.select(fixtures.itemReceive)[0].parse({ sourceLogId: "receive-transfer", rawLog: fixtures.itemReceive })[0];
 assert.equal(receivedTransfer.movements.reduce((sum, movement) => sum + movement.quantity, 0), 5);
 assert.equal(receivedTransfer.movements.every((movement) => movement.direction === "in"), true);
+assert.equal(receivedTransfer.eventType, "gift_received");
+const currentGiftWithUidLog = { ...fixtures.itemReceive, data: { ...fixtures.itemReceive.data, items: { 792: { qty: 1, uid: "789012" } } } };
+const currentGiftWithUid = registry.select(currentGiftWithUidLog)[0].parse({ sourceLogId: "current-gift-uid", rawLog: currentGiftWithUidLog })[0];
+assert.equal(currentGiftWithUid.movements[0].attributes.uid, "789012");
 assert.deepEqual(registry.select(fixtures.itemSend)[0].parse({ sourceLogId: "same-transfer", rawLog: fixtures.itemSend }), registry.select(fixtures.itemSend)[0].parse({ sourceLogId: "same-transfer", rawLog: fixtures.itemSend }), "transfer events retain deterministic canonical IDs");
 const invalidTransfers = [
   { ...fixtures.legacyItemReceive, data: { ...fixtures.legacyItemReceive.data, sender: null } },

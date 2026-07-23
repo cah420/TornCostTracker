@@ -1,3 +1,50 @@
+# FIFO Rebuild Natural-Key Replacement Fix
+- Fixed FIFO rebuild failures when changed upstream Cost Lot quantities produced a revised consumption ID for an existing demand/lot/match-sequence natural key.
+- FIFO now replaces the complete derived consumption set for each processed item before storing its recomputed matches, removing stale allocations without clearing Cost Lots, Ledger records, demands, or other items.
+- Preserved deterministic replay metrics: unchanged consumption identities remain existing records, while materially changed allocations receive their new deterministic identities.
+- Fixed the Cost Lot v2 prerequisite failure caused by disposition-only policies still persisting version-1 identities. All Cost Lot outputs now receive their version from the central Cost Lot model.
+
+# Accounting Specification Update
+- Removed 2536 Halloween treat receipts and 4446 incoming trade-item evidence from acquisition coverage; neither directly changes owned inventory or creates Cost Lots.
+- Reclassified 4101/4103 item receipts as confirmed `gift_received` events with preserved quantities and known zero cash basis.
+- Added reusable Item Resolution infrastructure and fully supported 5802 programmed-virus acquisitions for Simple (69), Polymorphic (70), Tunneling (71), Armored (72), Stealth (73), and Firewalk (103) Viruses.
+- Added canonical replay replacement of superseded parser outputs so revised gift, trade-evidence, and virus semantics cannot coexist with stale derived events.
+- Advanced Accounting Projection, Ledger, Cost Lot, and FIFO derivations to version 2 so the reclassified canonical history rebuilds into an isolated accounting chain without retaining version-1 semantics.
+
+# Acquisition Coverage Sprint
+- Added exact-ID, evidence-backed canonical coverage for 18 previously unsupported archived contracts.
+- Added new supply for verified Dump/seasonal finds, resource-funded purchases, and reward variants. Confirmed zero-cash finds receive zero basis; non-cash consideration and unpriced rewards retain unknown basis.
+- Added non-inventory activity/trade-evidence parsing for 2536/4446 and subsequently refined 4101/4103/5802 through the Accounting Specification Update above.
+- Extended Accounting Projection, Ledger, Cost Lots, coverage classifications, fixtures, and deterministic pipeline tests without changing transfer neutrality or inventory reconciliation boundaries.
+
+# v0.10.0-alpha1 — Sprint 15 SQLite-Backed Purchases Replacement
+- Replaced the Purchases accounting source with Inventory Position v1, immutable Cost Lots v1, and FIFO v1 consumption facts queried from SQLite.
+- Added a read-only `PurchasePositionDetails` model and indexed query service with search, filters, paging, UID isolation, request-race protection, and trace references.
+- Added exact remaining-lot quantity/basis statistics, controlled known-versus-complete basis semantics, and an informational current Torn quantity comparison.
+- Retired LocalStorage purchase accounting reads from Purchases and the Item Details Purchases tab; shared compatibility stores remain for consumers not migrated in this sprint.
+- Added Purchases consumer metrics to Project Health, deterministic tests, responsive states, and migration documentation. Valuation remains deferred.
+
+# Sprint 14 RC1 - Inventory Position Quality Calibration
+- Calibrated Position semantics without changing identity, quantity, basis, persistence, source versions, or reconciliation: `UNKNOWN` now means indeterminate remaining quantity, while incomplete basis is `DEFERRED` and attributable historical/UID limitations preserve the inventory status.
+- Rebalanced deterministic confidence deductions, stopped propagating UID-less evidence to every UID Position, and added structured human-readable explanations with status, health, confidence, warnings, reasons, and supporting context.
+- Added detailed confidence, warning, status, UNKNOWN-combination, deduction, and unassigned-evidence histograms to Settings and Project Health, plus a normative Position Classification Matrix.
+
+# Sprint 14 - Inventory Position Projection Foundation (Part 1)
+- Added SQLite migration 010 and independently versioned Inventory Position v1 rows, diagnostics, and rebuild runs derived only from immutable Cost Lot v1 and FIFO v1 records.
+- Added deterministic fungible item-ID and UID-specific identities, derived open/partial/closed lot aggregation, known/deferred/unknown quantity and basis categories, status, health, confidence deductions, and source/quantity/basis/lot reconciliation.
+- Added paged OPFS aggregation, batched idempotent persistence, stale-position pruning, interrupted-run recovery, efficient application-facing queries, bounded Settings inspection, and Project Health reporting without changing current Items, Purchases, valuation, or upstream accounting layers.
+
+# Sprint 13 - Read-Only FIFO Consumption Engine
+- Added SQLite migration 009 with immutable disposal demands, FIFO consumption allocations, source dispositions, diagnostics, and rebuild-run metrics over Ledger v1 and Cost Lot v1.
+- Added conservative paid-disposal demand policies plus deterministic per-item matching for fungible FIFO, exact UID evidence, partial lots, multi-lot/multi-disposal allocation, causal-time enforcement, and explicit historical shortfalls.
+- Added cumulative integer basis allocation without rounding drift, derived lot-state queries without Cost Lot mutation, Settings inspection, Project Health reconciliation, and deterministic second-run idempotency. Current Purchases, inventory, legacy FIFO, valuation, and active accounting remain unchanged.
+- Fixed the post-rebuild Settings stall by limiting derived lot-state inspection before calculating consumption totals, and mark browser-interrupted FIFO runs as failed when a replacement rebuild begins.
+
+# Sprint 12 - Read-Only Cost Lot Foundation
+- Added SQLite migration 008 with separately versioned lot groups, cost lots, source dispositions, and rebuild runs derived exclusively from Accounting Ledger v1.
+- Added modular lot policies for paid acquisitions, non-cash rewards, and conversion outputs. Single-item basis is allocated only when unambiguous; shared purchase basis, reward basis, and conversion basis remain explicitly deferred without invented values.
+- Added deterministic acquisition ordering, UID safeguards, quantity/basis/source reconciliation, paged idempotent rebuilds, Project Health metrics, and limited Settings inspection. FIFO consumption, disposal matching, valuation, and active application accounting remain unchanged.
+
 # Sprint 11.1 - Read-Only Accounting Ledger Foundation
 - Added SQLite migration 007 and a separate versioned Accounting Ledger (`v1`) with controlled accounts, deterministic transactions/lines, rebuild-run metrics, and indexes for source, status, account, and item inspection.
 - Added modular projection-only ledger policies: balanced paid acquisitions/disposals and cash rewards; deferred non-cash rewards and item-only conversions; neutral transfer memoranda; and explicitly unresolved trades. No FIFO, lots, valuation, Purchases, or inventory behavior changed.

@@ -1,0 +1,36 @@
+function dispositionOnly(transaction, tools, disposition, reasonCode){
+  return { disposition: tools.makeDisposition(transaction, disposition, reasonCode), group: null, lots: [] };
+}
+function paidAcquisition(transaction, tools){
+  if (transaction.transactionStatus !== "posted" || transaction.balanceStatus !== "balanced" || transaction.debitTotal !== transaction.creditTotal) throw new Error("unsupported_ledger_shape");
+  const candidates = tools.itemEntryLines(transaction); if (!candidates.length) throw new Error("missing_item_line");
+  const basis = transaction.debitTotal; if (!Number.isInteger(basis) || basis < 0) throw new Error("basis_reconciliation_failed");
+  const single = candidates.length === 1; const quantity = single ? candidates[0].quantity : null; const divisible = single && Number.isInteger(quantity) && quantity > 0 && basis % quantity === 0;
+  return tools.createLotOutput(transaction, "paid-acquisition", { candidates, groupType: "paid_acquisition", groupStatus: single ? tools.CostLotGroupStatus.open : tools.CostLotGroupStatus.deferred, groupBasisStatus: single ? tools.CostLotBasisStatus.knownAllocated : tools.CostLotBasisStatus.knownGroupDeferred, groupAllocationStatus: single ? tools.CostLotAllocationStatus.fullyAllocated : tools.CostLotAllocationStatus.deferred, originalTotalBasis: basis, allocatedTotalBasis: single ? basis : 0, unallocatedTotalBasis: single ? 0 : basis, lotStatus: single ? tools.CostLotStatus.open : tools.CostLotStatus.deferred, lotBasisStatus: single ? tools.CostLotBasisStatus.knownAllocated : tools.CostLotBasisStatus.knownGroupDeferred, lotAllocationStatus: single ? tools.CostLotAllocationStatus.fullyAllocated : tools.CostLotAllocationStatus.deferred, disposition: single ? tools.CostLotDisposition.lotsCreated : tools.CostLotDisposition.deferredLotsCreated, dispositionReason: single ? "paid_acquisition_fully_allocated" : "multi_item_basis_allocation_deferred", deferredReason: single ? null : "multi_item_basis_allocation_deferred", diagnosticReason: single && !divisible ? "indivisible_unit_basis" : null, lotBasis: () => single ? { originalTotalBasis: basis, allocatedBasis: basis, unallocatedBasis: 0, unitBasis: divisible ? basis / quantity : null } : { originalTotalBasis: null, allocatedBasis: null, unallocatedBasis: null, unitBasis: null } });
+}
+function nonCashReward(transaction, tools){
+  const candidates = tools.itemEntryLines(transaction); if (!candidates.length) throw new Error("missing_item_line");
+  const knownZero = transaction.basisStatus === "known_no_cash_consideration";
+  return tools.createLotOutput(transaction, "non-cash-reward", { candidates, groupType: "non_cash_reward", groupStatus: tools.CostLotGroupStatus.deferred, groupBasisStatus: knownZero ? tools.CostLotBasisStatus.knownNoCash : tools.CostLotBasisStatus.unknown, groupAllocationStatus: tools.CostLotAllocationStatus.unknown, originalTotalBasis: knownZero ? 0 : null, allocatedTotalBasis: knownZero ? 0 : null, unallocatedTotalBasis: knownZero ? 0 : null, lotStatus: tools.CostLotStatus.deferred, lotBasisStatus: knownZero ? tools.CostLotBasisStatus.knownNoCash : tools.CostLotBasisStatus.unknown, lotAllocationStatus: tools.CostLotAllocationStatus.unknown, disposition: tools.CostLotDisposition.deferredLotsCreated, dispositionReason: knownZero ? "reward_zero_cash_basis" : "reward_basis_unknown", deferredReason: knownZero ? null : "reward_basis_unknown", lotBasis: () => knownZero ? { originalTotalBasis: 0, allocatedBasis: 0, unallocatedBasis: 0, unitBasis: 0 } : {} });
+}
+function nonCashAcquisition(transaction, tools){
+  const candidates = tools.itemEntryLines(transaction); if (!candidates.length) throw new Error("missing_item_line");
+  return tools.createLotOutput(transaction, "non-cash-acquisition", { candidates, groupType: "deferred_acquisition", groupStatus: tools.CostLotGroupStatus.deferred, groupBasisStatus: tools.CostLotBasisStatus.unknown, groupAllocationStatus: tools.CostLotAllocationStatus.unknown, originalTotalBasis: null, allocatedTotalBasis: null, unallocatedTotalBasis: null, lotStatus: tools.CostLotStatus.deferred, lotBasisStatus: tools.CostLotBasisStatus.unknown, lotAllocationStatus: tools.CostLotAllocationStatus.unknown, disposition: tools.CostLotDisposition.deferredLotsCreated, dispositionReason: "non_cash_basis_unknown", deferredReason: "non_cash_consideration_not_valued" });
+}
+function conversionOutput(transaction, tools){
+  const candidates = tools.itemEntryLines(transaction);
+  if (!candidates.length) return dispositionOnly(transaction, tools, tools.CostLotDisposition.noItemEntry, "conversion_has_no_item_output");
+  const cashOutLines = transaction.lines.filter((line) => line.lineKind === "monetary" && line.movementDirection === "out" && Number.isInteger(line.creditAmount)); const cashOut = cashOutLines.reduce((sum, line) => sum + line.creditAmount, 0);
+  const hasKnownConsideration = cashOutLines.length > 0;
+  return tools.createLotOutput(transaction, "conversion-output", { candidates, groupType: "conversion_output", groupStatus: tools.CostLotGroupStatus.deferred, groupBasisStatus: hasKnownConsideration ? tools.CostLotBasisStatus.knownGroupDeferred : tools.CostLotBasisStatus.unknown, groupAllocationStatus: tools.CostLotAllocationStatus.deferred, originalTotalBasis: hasKnownConsideration ? cashOut : null, allocatedTotalBasis: hasKnownConsideration ? 0 : null, unallocatedTotalBasis: hasKnownConsideration ? cashOut : null, lotStatus: tools.CostLotStatus.deferred, lotBasisStatus: hasKnownConsideration ? tools.CostLotBasisStatus.knownGroupDeferred : tools.CostLotBasisStatus.unknown, lotAllocationStatus: tools.CostLotAllocationStatus.deferred, disposition: tools.CostLotDisposition.deferredLotsCreated, dispositionReason: "conversion_basis_allocation_deferred", deferredReason: "conversion_basis_allocation_deferred" });
+}
+export const COST_LOT_POLICY_REGISTRY = Object.freeze([
+  { code: "ledger-error", applies: (t) => t.transactionStatus === "ledger_error", build: (t, tools) => dispositionOnly(t, tools, tools.CostLotDisposition.error, "source_ledger_error") },
+  { code: "paid-acquisition", applies: (t) => t.accountingClassification === "paid_acquisition", build: paidAcquisition },
+  { code: "non-cash-acquisition", applies: (t) => t.accountingClassification === "non_cash_acquisition", build: nonCashAcquisition },
+  { code: "non-cash-reward", applies: (t) => t.accountingClassification === "reward_non_cash", build: nonCashReward },
+  { code: "conversion-output", applies: (t) => t.accountingClassification === "conversion", build: conversionOutput },
+  { code: "trade-unresolved", applies: (t) => t.accountingClassification === "trade_unresolved", build: (t, tools) => dispositionOnly(t, tools, tools.CostLotDisposition.unresolved, "trade_correlation_required") },
+  { code: "neutral-transfer", applies: (t) => t.accountingClassification === "transfer_neutral", build: (t, tools) => dispositionOnly(t, tools, tools.CostLotDisposition.ineligible, "neutral_transfer") },
+  { code: "no-item-entry", applies: (t) => ["paid_disposal", "cash_reward", "wallet_movement"].includes(t.accountingClassification), build: (t, tools) => dispositionOnly(t, tools, tools.CostLotDisposition.noItemEntry, "source_has_no_eligible_item_entry") },
+]);

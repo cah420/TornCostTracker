@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { COST_LOT_VERSION } from "./cost-lot.js";
+import { CostLotService } from "./cost-lot-service.js";
+
+function transaction(id, timestamp, classification, lines, total = 0, status = "posted"){ return { id, ledgerVersion: 1, sourceProjectionVersion: 1, sourceProjectionId: `p:${id}`, sourceCanonicalEventId: `c:${id}`, eventTimestamp: timestamp, accountingClassification: classification, projectionOutcome: "projectable", transactionStatus: status, balanceStatus: status === "posted" ? "balanced" : "not_monetary", debitTotal: total, creditTotal: total, policyCode: classification, lines, sourceMetadata: {} }; }
+const line = (id, itemId, quantity, direction = "in") => ({ id, lineSequence: 0, accountCode: "inventory_asset_pending_basis", debitAmount: null, creditAmount: null, itemId, itemUid: null, quantity, movementDirection: direction, lineKind: "monetary" });
+const sources = [transaction("ledger:a", 1, "paid_acquisition", [line("line:a", "1", 2)], 100), transaction("ledger:n", 2, "non_cash_acquisition", [line("line:n", "2", 3)], 0, "deferred"), transaction("ledger:d", 3, "paid_disposal", [line("line:d", "1", 1, "out")], 50), transaction("ledger:t", 4, "trade_unresolved", [], 0, "unresolved")];
+class LedgerMemory { async latestRun(){ return { status: "completed", metrics: { reconciliationBalanced: true } }; } async pageForCostLots(_version, { timestamp, id, limit }){ return sources.filter((row) => timestamp === null || row.eventTimestamp > timestamp || (row.eventTimestamp === timestamp && row.id > id)).slice(0, limit).map((row) => ({ id: row.id, event_timestamp: row.eventTimestamp, payload_json: JSON.stringify(row) })); } }
+class LotMemory {
+  constructor(){ this.groups = new Map(); this.lots = new Map(); this.dispositions = new Map(); this.run = null; }
+  async startRun(){ this.run = { id: 1 }; return this.run; } async updateRunProgress(){ } async finishRun(_id, values){ this.run = { ...this.run, ...values, metrics: values.metrics }; }
+  async storeBatch(outputs){ const result = { groupsInserted: 0, existingGroups: 0, lotsInserted: 0, existingLots: 0, dispositionsInserted: 0, existingDispositions: 0 }; const store = (map, row, inserted, existing) => { if (map.has(row.id)) result[existing] += 1; else { map.set(row.id, row); result[inserted] += 1; } }; outputs.forEach((output) => { if (output.group) store(this.groups, output.group, "groupsInserted", "existingGroups"); output.lots.forEach((lot) => store(this.lots, lot, "lotsInserted", "existingLots")); store(this.dispositions, output.disposition, "dispositionsInserted", "existingDispositions"); }); return result; }
+  async countRows(){ return { groups: this.groups.size, lots: this.lots.size, dispositions: this.dispositions.size }; } async latestRun(){ return this.run; } async listGroups(){ return [...this.groups.values()]; } async listLots(){ return [...this.lots.values()]; }
+}
+const storage = new LotMemory(); const service = new CostLotService({ ledger: new LedgerMemory(), lots: storage, pageSize: 2 });
+const first = await service.rebuild(); const second = await service.rebuild();
+assert.equal(first.ledgerTransactionsExamined, 4); assert.equal(first.lotGroupsGenerated, 2); assert.equal(first.costLotsGenerated, 2); assert.equal(first.originalQuantity, 5); assert.equal(first.remainingQuantity, 5); assert.equal(first.consumedQuantity, 0); assert.equal(first.unresolvedTransactions, 1); assert.equal(first.reconciliationBalanced, true); assert.equal(first.groupsInserted, 2); assert.equal(first.lotsInserted, 2); assert.equal(first.dispositionsInserted, 4);
+assert.equal(second.groupsInserted, 0); assert.equal(second.lotsInserted, 0); assert.equal(second.dispositionsInserted, 0); assert.equal(second.existingGroups, 2); assert.equal(second.existingLots, 2); assert.equal(second.existingDispositions, 4); assert.equal(second.reconciliationBalanced, true);
+assert.equal(storage.groups.size, 2); assert.equal(storage.lots.size, 2); assert.equal(storage.dispositions.size, 4);
+assert.equal([...storage.dispositions.values()].every((row) => row.costLotVersion === COST_LOT_VERSION), true, "every stored disposition belongs to the active Cost Lot version");
+console.log("Cost Lot rebuild and idempotency deterministic tests passed.");
