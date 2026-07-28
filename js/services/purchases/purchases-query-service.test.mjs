@@ -24,6 +24,12 @@ const notReady = new PurchasesQueryService({ database: { initialize: async () =>
 assert.deepEqual(await notReady.listPositions(), { ready: false, reason: "no opfs", source: "sqlite", rows: [], total: 0 });
 const noRun = new PurchasesQueryService({ database: { initialize: async () => ({ available: true }) }, positions: { latestRun: async () => null }, purchases: new Purchases(), itemStore: { items: () => [] }, catalog: { all: () => [], nameFor: () => null } });
 assert.match((await noRun.readiness()).reason, /Build Inventory Position/);
+const stalePosition = new PurchasesQueryService({ database: { initialize: async () => ({ available: true }) }, positions: { latestRun: async () => ({ status: "completed", source_cost_lot_version: 1, source_fifo_version: 1 }) }, purchases: new Purchases(), itemStore: { items: () => [] }, catalog: { all: () => [], nameFor: () => null } });
+const staleReadiness = await stalePosition.readiness();
+assert.equal(staleReadiness.ready, false);
+assert.match(staleReadiness.reason, /built from Cost Lot v1 \/ FIFO v1/);
+assert.match(staleReadiness.reason, new RegExp(`requires Cost Lot v${COST_LOT_VERSION} / FIFO v${FIFO_VERSION}`));
+assert.match(staleReadiness.reason, /Rebuild Inventory Position/);
 const failure = new PurchasesQueryService({ database: { initialize: async () => ({ available: true }) }, positions: { latestRun: async () => ({ status: "completed", source_cost_lot_version: COST_LOT_VERSION, source_fifo_version: FIFO_VERSION }), listOwnedPositions: async () => { throw new Error("repository failed"); }, countOwnedPositions: async () => 0 }, purchases: new Purchases(), itemStore: { items: () => [] }, catalog: { all: () => [], nameFor: () => null } });
 await assert.rejects(() => failure.listPositions(), /repository failed/); assert.equal(failure.metrics.lastError, "repository failed");
 console.log("SQLite Purchases query service readiness, filtering, detail, and stale-request tests passed.");

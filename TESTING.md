@@ -1,5 +1,29 @@
 # Manual verification
 
+## Disposal Accounting v1
+
+- Rebuild Canonical Events and confirm the 53 fixture-backed IDs classify according to `docs/DISPOSAL_LOG_SUPPORT.md`.
+- Confirm Item Market 1113 records gross as `cost_total + fee`, fees separately, and net as `cost_total`.
+- Confirm consumption, outgoing gifts, faction deposits, Dump additions, Christmas pot deposits, and crime item loss create non-cash disposal demands with zero proceeds and no sale revenue.
+- Confirm conversions and review-only candidates do not create ordinary FIFO disposal demands.
+- Confirm Disposal Resolver admits only completed items-sent/cash-received trades with neither cash sent nor items received.
+- Confirm one Item ID resolves automatically, multiple Item IDs require exact balanced allocation, and UID remainders are stable.
+- Edit a resolution and confirm a new revision supersedes the old one while retaining history.
+- Rebuild Projection → Ledger → Cost Lots → FIFO → Inventory Position. Confirm Realized Results use allocated net proceeds minus known consumed basis.
+- Confirm insufficient quantity, missing UID, and unknown basis remain visible rather than creating synthetic lots or false profit.
+
+## Trade Resolver v1
+
+- Run `node js/services/history/parsers/trade-evidence-parser.test.mjs`, `node js/services/history/trade-resolution-service.test.mjs`, and `node js/services/history/trade-resolution-projector.test.mjs`.
+- Run `node js/database/migrations/trade-resolution.test.mjs` and `node js/database/trade-resolution-repository.test.mjs` for unique trade/version identity, one active revision, transactional supersession, canonical replacement, rollback, and derived-chain invalidation.
+- Replay Canonical Events after importing trade logs. Confirm evidence IDs 4430, 4440, 4441, 4445, and 4446 appear without independently creating Cost Lots.
+- Open Trade Resolver and scan eligible trades. Confirm sent-item, received-cash, incomplete, and mixed-direction trades do not appear.
+- Confirm multiple received rows with one Item ID resolve automatically; stack quantity remains grouped; every supplied UID is preserved.
+- For a $10,000 three-UID trade, confirm deterministic UID basis is $3,334, $3,333, and $3,333 in stable UID order on repeat processing.
+- Confirm multi-item Resolve remains disabled until every item is covered and allocated totals equal cash sent.
+- Resolve, replay identical evidence, edit, and inspect history. Confirm v1 remains superseded/queryable, v2 alone is active, identical processing creates no v3, canonical events reference v2, and changed evidence marks Needs Review.
+- After a resolution change, confirm Purchases is unavailable until Projection, Ledger, Cost Lots, FIFO, and Inventory Position are rebuilt in order. Confirm the final Cost Lots equal the active allocation and no superseded allocation remains.
+
 ## Accounting Specification Update
 
 - Run `node js/services/history/item-resolution-service.test.mjs` independently for all six virus mappings, normalization, unknown identifiers, malformed identifiers, and unknown resolution sources.
@@ -7,12 +31,13 @@
 - Confirm 4101/4103 emit `gift_received`, preserve every verified quantity/UID, project to known zero cash basis, and create zero-basis Cost Lots. Confirm 4102 remains a neutral outbound transfer.
 - Confirm every verified 5802 virus value creates exactly one item with the canonical ID and zero basis. Unknown or malformed identifiers must become visible unsupported results with no event or lot.
 - Confirm 2536 creates no inventory movement or Cost Lot. Confirm 4446 contains no `in` inventory movement, remains correlation-required, and creates no Cost Lot.
-- Replay Canonical Events before rebuilding Projection v2, Ledger v2, Cost Lots v2, FIFO v2, and Inventory Position in that order. Confirm superseded 4101/4103/4446/5802 canonical outputs and their obsolete projections are replaced rather than duplicated, raw logs are unchanged, and Purchases accepts only the current derived-version chain.
+- Replay Canonical Events before rebuilding Projection v3, Ledger v3, Cost Lots v3, FIFO v3, and Inventory Position v2 in that order. Confirm superseded canonical outputs and obsolete projections are replaced rather than duplicated, raw logs are unchanged, and Purchases accepts only the current derived-version chain.
 
 ## FIFO natural-key replacement bugfix
 
 - Run `node js/services/history/fifo-service.test.mjs`, `node js/database/fifo-repository.test.mjs`, and `node js/services/history/fifo-consumption.test.mjs`.
 - Run `node js/services/history/cost-lot.test.mjs` and confirm lot-producing and disposition-only outcomes both use the current Cost Lot version and deterministic identity prefix.
+- Run `node js/services/purchases/purchases-query-service.test.mjs` and confirm a stale Inventory Position reports both source-version pairs and directs the user to rebuild Inventory Position after FIFO.
 - The service fixture changes an existing Cost Lot quantity between rebuilds while retaining the same demand, lot, and match sequence. Confirm the old consumption is removed, the revised identity is stored without a unique-key collision, only one current row remains, reconciliation passes, and the next unchanged replay reports the identity as existing.
 - In the browser, rerun FIFO after a completed reconciled Cost Lot rebuild. The prior failed run may remain in run history, but the new run should replace current item-scoped consumptions and complete without clearing purchase, Cost Lot, Ledger, or raw-log data.
 

@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { migration011TradeResolution } from "./011-trade-resolution.js";
+const sql = migration011TradeResolution.statements.join("\n");
+assert.equal(migration011TradeResolution.version, 11);
+assert.match(sql, /CREATE TABLE trade_resolutions/);
+assert.match(sql, /UNIQUE\(trade_id, resolution_version\)/);
+assert.match(sql, /WHERE is_active = 1/);
+assert.match(sql, /supersedes_resolution_id/);
+assert.match(sql, /CREATE TABLE trade_resolution_event_links/);
+assert.match(sql, /canonical_event_id TEXT NOT NULL UNIQUE/);
+assert.match(sql, /CREATE TABLE accounting_rebuild_state/);
+console.log("Trade Resolution migration constraints tests passed.");

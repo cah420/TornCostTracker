@@ -617,6 +617,62 @@ main {
 .tct-purchases__message.success { color: var(--success); }
 .tct-purchases__message.error { color: var(--danger); }
 
+.tct-trade-resolver { display: grid; gap: 16px; }
+.tct-trade-resolver__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.tct-trade-resolver__heading h2,
+.tct-trade-resolver__heading p,
+.tct-trade-resolver__section h3,
+.tct-trade-resolver__details h3,
+.tct-trade-resolver__details p { margin: 0; }
+.tct-trade-resolver__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.tct-trade-resolver__summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  color: var(--text-muted);
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.tct-trade-resolver__summary strong { color: var(--text); font-size: 1.35rem; }
+.tct-trade-resolver__section,
+.tct-trade-resolver__details { display: grid; gap: 12px; margin-top: 16px; }
+.tct-trade-resolver__details {
+  padding: 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.tct-trade-resolver__allocations { display: grid; gap: 10px; }
+.tct-trade-resolver__allocation {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, auto) minmax(110px, auto) minmax(130px, 180px) minmax(90px, auto) minmax(130px, 180px);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.tct-trade-resolver__allocation span,
+.tct-trade-resolver__allocation label { color: var(--text-muted); }
+.tct-trade-resolver__allocation input {
+  min-width: 0;
+  padding: 8px;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+@media (max-width: 900px) {
+  .tct-trade-resolver__heading { display: grid; }
+  .tct-trade-resolver__allocation { grid-template-columns: 1fr 1fr; }
+}
+
 .tct-conversions__gain-loss--positive { color: var(--success); }
 .tct-conversions__gain-loss--negative { color: var(--danger); }
 

@@ -34,11 +34,14 @@
 - Evidence-backed acquisition expansion: the revised archived target set has 18 acquisition-bearing IDs, all with exact raw contracts and explicit zero-cash or unknown-basis supply. Incoming trades and Halloween treats are excluded from acquisition coverage.
 - Reusable Item Resolution: deterministic source-specific identifiers can resolve to canonical Torn item IDs without coupling raw parsers to lookup tables or the display-only Item Catalog.
 - Accounting semantics v2: superseded canonical interpretations are transactionally replaced, and Projection, Ledger, Cost Lots, and FIFO rebuild as one isolated current-version chain.
+- Trade Resolver v1: verified completed cash-for-items evidence, immutable resolution revisions, automatic single-item/UID allocation, balanced manual multi-item allocation, canonical acquisition projection, and transactional downstream invalidation.
+- Disposal Accounting v1: 53 evidence-backed contracts, non-sale FIFO consumption, inverse trade resolution, deterministic proceeds attribution, Realized Results, and Disposal Resolver.
 
 ## Future
 - Valuation only after Purchases has migrated onto Inventory Position.
-- Cost-basis allocation for unresolved trades.
+- Expand Trade Resolver beyond v1 only from verified evidence: mixed consideration, item-for-item exchanges, received cash, sent items, properties, companies, factions, and other trade assets remain deferred.
+- Obtain representative evidence for the 48 unobserved disposal candidates and complete Museum/crime conversion correlation without title-based assumptions.
 - Per-instance equipment details such as UID, weapon/armor stats, bonuses, and equipped state.
 - Purchase history, portfolio growth, and historical reporting views.
 - Expand parser coverage only from verified raw-log samples, prioritizing observed accounting-relevant unsupported and partially supported log types.
-- Correlate trade lifecycle records before allowing incoming trade items to create Cost Lots or receive allocated consideration.
+- Add richer Trade Resolution revision comparison, review approval, and rebuild-state visibility without weakening immutable audit history.

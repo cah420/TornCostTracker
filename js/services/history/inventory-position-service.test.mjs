@@ -4,6 +4,7 @@ import { ACCOUNTING_PROJECTION_VERSION } from "./accounting-projection.js";
 import { COST_LOT_VERSION } from "./cost-lot.js";
 import { FIFO_VERSION } from "./fifo-consumption.js";
 import { InventoryPositionService } from "./inventory-position-service.js";
+import { INVENTORY_POSITION_VERSION } from "./inventory-position.js";
 
 const lots = [
   { id: "lot-a", costLotVersion: COST_LOT_VERSION, sourceLedgerVersion: ACCOUNTING_LEDGER_VERSION, sourceProjectionVersion: ACCOUNTING_PROJECTION_VERSION, itemId: "1", itemUid: null, originalQuantity: 10, lotStatus: "open", basisStatus: "known_allocated_basis", allocationStatus: "fully_allocated", allocatedBasis: 100, unitBasis: 10, acquisitionTimestamp: 1, acquisitionSequence: "1:a" },
@@ -42,6 +43,6 @@ assert.equal(first.averageConfidence, 100); assert.equal(first.medianConfidence,
 assert.deepEqual(first.classificationRuleHistogram, { partial_lot: 1, fully_reconciled: 1 }); assert.deepEqual(first.warningReasonHistogram, {}); assert.deepEqual(first.unknownReasonHistogram, {});
 assert.equal(second.positionsInserted, 0); assert.equal(second.existingPositions, 2); assert.equal(second.reconciliationBalanced, true); assert.equal(positions.rows.size, 2);
 assert.equal(costLots.mutations, 0); assert.equal(fifo.mutations, 0);
-const diagnostics = await service.diagnostics(); assert.equal(diagnostics.health, "Healthy"); assert.equal(diagnostics.positionVersion, 1);
+const diagnostics = await service.diagnostics(); assert.equal(diagnostics.health, "Healthy"); assert.equal(diagnostics.positionVersion, INVENTORY_POSITION_VERSION);
 assert.equal(diagnostics.classificationCalibrationAvailable, true);
 console.log("Inventory Position paged rebuild, reconciliation, isolation, and idempotency tests passed.");

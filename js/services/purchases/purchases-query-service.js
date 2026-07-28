@@ -52,8 +52,17 @@ export class PurchasesQueryService {
     if (!initialized.available) return { ready: false, reason: initialized.reason, source: "sqlite" };
     const run = await this.positions.latestRun(this.positionVersion);
     if (!run || run.status !== "completed") return { ready: false, reason: run?.status === "running" ? "Inventory Position rebuild is currently in progress. Wait for it to complete before using Purchases." : "Build Inventory Position in Settings before using Purchases.", source: "sqlite", run };
-    const compatible = Number(run.source_cost_lot_version) === this.costLotVersion && Number(run.source_fifo_version) === this.fifoVersion;
-    if (!compatible) return { ready: false, reason: "Inventory Position source versions do not match the Purchases query model. Rebuild the accounting projections in Settings.", source: "sqlite", run };
+    const positionCostLotVersion = Number(run.source_cost_lot_version);
+    const positionFifoVersion = Number(run.source_fifo_version);
+    const compatible = positionCostLotVersion === this.costLotVersion && positionFifoVersion === this.fifoVersion;
+    if (!compatible) {
+      return {
+        ready: false,
+        reason: `Inventory Position was built from Cost Lot v${positionCostLotVersion || "unknown"} / FIFO v${positionFifoVersion || "unknown"}, but Purchases requires Cost Lot v${this.costLotVersion} / FIFO v${this.fifoVersion}. Rebuild Inventory Position in Settings after the current FIFO rebuild completes.`,
+        source: "sqlite",
+        run,
+      };
+    }
     return { ready: true, source: "sqlite", run };
   }
 

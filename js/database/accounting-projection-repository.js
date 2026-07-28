@@ -11,7 +11,9 @@ export class AccountingProjectionRepository {
     const rows = await this.database.query("SELECT * FROM accounting_projection_runs ORDER BY id DESC LIMIT 1"); return rows[0];
   }
   async finishRun(id, { status, metrics, errorSummary = null, completedAt = Date.now() }){
-    await this.database.transaction([{ sql: "UPDATE accounting_projection_runs SET status = ?, completed_at = ?, metrics_json = ?, error_summary = ? WHERE id = ?", bind: [status, completedAt, stableStringify(metrics), errorSummary, id] }]);
+    const statements = [{ sql: "UPDATE accounting_projection_runs SET status = ?, completed_at = ?, metrics_json = ?, error_summary = ? WHERE id = ?", bind: [status, completedAt, stableStringify(metrics), errorSummary, id] }];
+    if (status === "completed") statements.push({ sql: "DELETE FROM accounting_rebuild_state WHERE layer = 'accounting_projection'" });
+    await this.database.transaction(statements);
   }
   async storeBatch(records, { projectionVersion, now = Date.now() } = {}){
     if (!records.length) return { inserted: 0, existing: 0 };

@@ -1,5 +1,21 @@
 # Development Log
 
+## Disposal Accounting v1
+
+The 2026-07-24 evidence gate found 53 represented contracts and 48 unobserved candidates. Implementation was intentionally limited to the represented set. Direct sales and verified ownership-ending non-cash outflows now enter the existing accounting pipeline; faction-owned movements and incomplete conversion evidence remain review-only.
+
+Disposal Resolution mirrors immutable Trade Resolution for the inverse completed-trade case: items sent only and cash received only. Canonical replacement and downstream invalidation are transactional. FIFO now distributes attributable proceeds over source lots with integer cumulative allocation and persists derived Realized Results without treating consumption, gifts, or losses as sales.
+
+## Trade Resolver v1
+
+Trade Resolver introduces the first correlated accounting source above canonical trade lifecycle evidence. Strict parsers now preserve verified completion (4430), cash-out (4440), cash-in (4441), item-out (4445), and item-in (4446) facts without independently changing inventory. The resolver groups those facts by Torn trade ID and admits only completed cash-sent/items-received trades with no items sent and no cash received.
+
+Received item rows are grouped by canonical item ID, not JSON row count. A single group resolves automatically. Stackable quantity receives the full trade basis in one acquisition event; UID quantity receives one deterministic event per UID. Sorted UID order owns remainder dollars, so indivisible cash allocation is stable across browsers and replay. Multiple item IDs require a balanced user allocation.
+
+Migration 011 stores immutable revisions with a unique trade/version identity and a partial unique index enforcing one active revision. Resolution activation, prior-revision supersession, obsolete canonical/projection removal, replacement canonical acquisitions, and current derived-chain invalidation occur in one SQLite transaction. Revisions remain queryable after downstream rebuilds. Changed evidence marks the active record Needs Review; automatic processing never overwrites a confirmed manual revision.
+
+The UI is only an interface to `TradeResolutionService`. It never posts Ledger rows or creates Cost Lots. After any created or edited resolution, the required rebuild order remains Projection, Ledger, Cost Lots, FIFO, and Inventory Position.
+
 ## Accounting Specification Update
 
 Logs 4101 and 4103 are now confirmed gifts rather than neutral transfers. Their separate legacy/current raw contracts emit the explicit canonical `gift_received` type, preserve sender, quantity, and any verified UID evidence, and project to zero-cash reward supply. Log 4102 remains an accounting-neutral outbound item transfer.

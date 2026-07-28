@@ -1,8 +1,24 @@
+# Disposal Accounting v1
+- Added 53 sanitized, evidence-backed disposal fixtures and strict log-contract classification.
+- Added paid sales, consumption, gift/donation, loss/destruction, conversion-input exclusion, and review-only handling.
+- Corrected Item Market fee semantics and City Shop area support from the authoritative export.
+- Reclassified verified outgoing item gifts as known-zero disposals instead of accounting-neutral transfers.
+- Added immutable Disposal Resolution revisions for completed items-for-cash trades, including automatic single-item and balanced manual multi-item allocation.
+- Added deterministic UID proceeds distribution, FIFO proceeds attribution, SQLite-backed Realized Results, the Disposal Resolver page, and migration 012.
+
+# Trade Resolver v1
+- Added canonical trade evidence parsers for completed trades, outgoing/incoming cash, and outgoing items while retaining incoming items as non-inventory correlation evidence.
+- Added SQLite migration 011 with immutable versioned Trade Resolution revisions, one-active-revision enforcement, retained history, deterministic allocations, and accounting staleness tracking.
+- Added cash-only-for-items eligibility, canonical item-ID grouping, single-item automatic resolution, multi-item manual allocation, and deterministic UID remainder distribution.
+- Added transactional canonical replacement and current derived-chain invalidation so edited resolutions cannot append duplicate Ledger, Cost Lot, FIFO, or Inventory Position interpretations.
+- Added the Trade Resolver page with Ready, Automatically Resolved, Resolved, and Needs Review sections, summary counts, balanced allocation editing, version details, and revision history.
+
 # FIFO Rebuild Natural-Key Replacement Fix
 - Fixed FIFO rebuild failures when changed upstream Cost Lot quantities produced a revised consumption ID for an existing demand/lot/match-sequence natural key.
 - FIFO now replaces the complete derived consumption set for each processed item before storing its recomputed matches, removing stale allocations without clearing Cost Lots, Ledger records, demands, or other items.
 - Preserved deterministic replay metrics: unchanged consumption identities remain existing records, while materially changed allocations receive their new deterministic identities.
 - Fixed the Cost Lot v2 prerequisite failure caused by disposition-only policies still persisting version-1 identities. All Cost Lot outputs now receive their version from the central Cost Lot model.
+- Corrected the Purchases version-mismatch guidance to identify the stored and required Cost Lot/FIFO versions and direct users to rebuild Inventory Position, rather than incorrectly suggesting another Accounting Projection rebuild.
 
 # Accounting Specification Update
 - Removed 2536 Halloween treat receipts and 4446 incoming trade-item evidence from acquisition coverage; neither directly changes owned inventory or creates Cost Lots.

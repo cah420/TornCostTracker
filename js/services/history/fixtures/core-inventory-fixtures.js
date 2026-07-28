@@ -17,7 +17,7 @@ export const coreInventoryFixtures = Object.freeze({
   bazaarSale: { log: 1226, title: "Bazaar sell", timestamp: 41, data: { buyer: "fixture-buyer", cost_each: 46999, cost_total: 375992, items: [{ id: 1080, qty: 8, uid: null }] } },
   cityShopSale: { log: 4210, title: "Item shop sell", timestamp: 42, data: { area: null, item: 62, quantity: 1, total_value: 150, value_each: 150 } },
   legacyItemReceive: { log: 4101, title: "Item receive (legacy)", timestamp: 43, data: { item: 374, message: "fixture", quantity: 2, sender: 47 } },
-  itemSend: { log: 4102, title: "Item send", timestamp: 44, data: { items: [{ id: 199, qty: 3, uid: 12509402993 }], message: "fixture", receiver: 48 } },
+  itemSend: { log: 4102, title: "Item send", timestamp: 44, data: { items: [{ id: 199, qty: 1, uid: 12509402993 }], message: "fixture", receiver: 48 } },
   itemReceive: { log: 4103, title: "Item receive", timestamp: 45, data: { items: { 792: 4, 813: 1 }, message: "fixture", sender: 49 } },
   tradeOffer: { log: 4482, title: "Trade items add other user", timestamp: 4, data: { items: [{ id: 126, qty: 2 }], user: 46, parsed_trade_id: 77 } },
   crimeItem: { log: 9020, title: "Crime success item gain (new)", timestamp: 5, data: { items_gained: [{ id: 127, qty: 1 }] } },

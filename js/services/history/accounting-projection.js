@@ -1,6 +1,6 @@
 import { stableStringify } from "../raw-log-serialization.js";
 
-export const ACCOUNTING_PROJECTION_VERSION = 2;
+export const ACCOUNTING_PROJECTION_VERSION = 3;
 export const ProjectionOutcome = Object.freeze({ projectable: "projectable", neutral: "neutral", unresolved: "unresolved", ignored: "ignored", projectionError: "projection_error" });
 export const AccountingClassification = Object.freeze({ paidAcquisition: "paid_acquisition", paidDisposal: "paid_disposal", nonCashAcquisition: "non_cash_acquisition", nonCashDisposal: "non_cash_disposal", conversion: "conversion", walletMovement: "wallet_movement", transferNeutral: "transfer_neutral", tradeUnresolved: "trade_unresolved", rewardNonCash: "reward_non_cash", cashReward: "cash_reward", unsupportedSemantics: "unsupported_semantics", ignoredSemantics: "ignored_semantics", projectionError: "projection_error" });
 const outcomes = new Set(Object.values(ProjectionOutcome)); const classifications = new Set(Object.values(AccountingClassification));
@@ -42,6 +42,15 @@ export function projectCanonicalEvent(event, { projectionVersion = ACCOUNTING_PR
     } else if (event.eventType === "disposal") {
       if (!has(normal, (m) => m.category === "item_out") || !has(normal, (m) => m.category === "cash_in")) fail("Paid disposal requires item-out and cash-in movements.");
       interpretation = projectable(event, AccountingClassification.paidDisposal, normal, { proceedsStatus: "known_total_proceeds" });
+    } else if (event.eventType === "non_cash_disposal") {
+      if (!has(normal, (m) => m.category === "item_out") || has(normal, (m) => m.category === "cash_in")) fail("Non-cash disposal requires item-out movements and no cash proceeds.");
+      interpretation = projectable(event, AccountingClassification.nonCashDisposal, normal, {
+        proceedsStatus: "known_zero",
+        disposalType: event.attributes?.disposalType ?? "unknown_non_cash_disposal",
+      });
+    } else if (event.eventType === "conversion_input") {
+      if (!has(normal, (m) => m.category === "item_out")) fail("Conversion input requires a verified item-out movement.");
+      interpretation = unresolved(AccountingClassification.conversion, "awaiting_conversion_accounting", "Verified conversion input is preserved without ordinary disposal treatment.", normal);
     } else if (event.eventType === "non_cash_acquisition") {
       if (!has(normal, (m) => m.category === "item_in")) fail("Non-cash acquisition requires an item-in movement.");
       interpretation = projectable(event, AccountingClassification.nonCashAcquisition, normal, { basisStatus: "unknown_basis" });
@@ -74,5 +83,6 @@ export function validateProjection(record){
   if (record.outcome === ProjectionOutcome.unresolved && !record.unresolvedReason?.code) fail("Unresolved projections require a reason code.");
   if (record.classification === AccountingClassification.transferNeutral && record.outcome !== ProjectionOutcome.neutral) fail("Transfers must remain neutral.");
   if (record.classification === AccountingClassification.tradeUnresolved && record.outcome !== ProjectionOutcome.unresolved) fail("Trades must remain unresolved.");
+  if (record.classification === AccountingClassification.nonCashDisposal && record.proceedsStatus !== "known_zero") fail("Non-cash disposals require known-zero proceeds.");
   record.projectedMovements.forEach((movement) => { if (!Object.hasOwn(movementOrder, movement.category)) fail("Projection contains an invalid movement category."); });
 }

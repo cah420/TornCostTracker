@@ -15,7 +15,8 @@ assert.deepEqual(await repository.storeConsumptions([consumption]), { consumptio
 const replacementIds = await repository.prepareConsumptionReplacement(1, "1");
 assert.equal(replacementIds.size, 0);
 const replacementStatements = database.transactions.at(-1);
-assert.match(replacementStatements[0].sql, /DELETE FROM accounting_fifo_consumptions WHERE fifo_version = \? AND item_id = \?/);
+assert.match(replacementStatements.map((row) => row.sql).join("\n"), /DELETE FROM accounting_realized_results WHERE fifo_version = \? AND item_id = \?/);
+assert.match(replacementStatements.map((row) => row.sql).join("\n"), /DELETE FROM accounting_fifo_consumptions WHERE fifo_version = \? AND item_id = \?/);
 assert.deepEqual(replacementStatements[0].bind, [1, "1"]);
 const disposition = { id: "fd1", fifoVersion: 1, sourceCostLotVersion: 1, sourceLedgerVersion: 1, sourceLedgerTransactionId: "t1", disposition: "fifo_consumed", reasonCode: "all_disposal_demand_matched" };
 assert.deepEqual(await repository.storeDispositions([disposition]), { dispositionsInserted: 1, existingDispositions: 0 });

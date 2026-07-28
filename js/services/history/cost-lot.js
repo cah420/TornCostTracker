@@ -1,7 +1,7 @@
 import { stableStringify } from "../raw-log-serialization.js";
 import { COST_LOT_POLICY_REGISTRY } from "./cost-lot-policies.js";
 
-export const COST_LOT_VERSION = 2;
+export const COST_LOT_VERSION = 3;
 export const CostLotDisposition = Object.freeze({
   lotsCreated: "lots_created",
   deferredLotsCreated: "deferred_lots_created",

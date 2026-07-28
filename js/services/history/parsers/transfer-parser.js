@@ -104,4 +104,6 @@ export const ItemReceiveGiftParser = createGiftReceivedParser({
   signature: ["items", "message", "sender"],
 });
 
-export const TransferParsers = Object.freeze([LegacyItemReceiveGiftParser, ItemSendTransferParser, ItemReceiveGiftParser]);
+// ItemSendTransferParser is retained only as a legacy parser identity so the
+// evidence-backed gift parser can supersede its previously neutral events.
+export const TransferParsers = Object.freeze([LegacyItemReceiveGiftParser, ItemReceiveGiftParser]);

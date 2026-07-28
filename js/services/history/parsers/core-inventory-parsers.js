@@ -5,6 +5,8 @@ import { createCashSaleParser } from "./cash-sale-parser.js";
 import { TransferParsers } from "./transfer-parser.js";
 import { LegacyItemMarketPurchaseParser } from "./legacy-item-market-purchase-parser.js";
 import { AcquisitionCoverageParsers } from "./acquisition-coverage-parser.js";
+import { TradeEvidenceParsers } from "./trade-evidence-parser.js";
+import { DisposalEvidenceParsers } from "./disposal-evidence-parser.js";
 
 function metadata(log){ return { logType: typeFor(log), title: titleFor(log), category: log.category ?? log.details?.category ?? null }; }
 function participant(role, entityType, entityId = null){ return entityId === null || entityId === undefined ? { role, entityType } : { role, entityType, entityId: String(entityId) }; }
@@ -52,10 +54,10 @@ export const GrenadeBoxConversionParser = createItemConversionParser({ name: "gr
 export const MedicalBoxConversionParser = createItemConversionParser({ name: "medical-box-conversion", logType: 2360, title: "Item use box of medical supplies", inputField: "item", outputItemField: "item2", maxItemOutputs: 1, declaredOutputQuantityField: "quantity" });
 export const StashBoxConversionParser = createItemConversionParser({ name: "stash-box-conversion", logType: 2407, title: "Item use stash box", inputField: "item", outputCashField: "money" });
 export const LegacyItemMarketSaleParser = createCashSaleParser({ name: "legacy-item-market-sale", logType: 1104, title: "Item market sell \\(old\\)", market: participant("market", "item_market"), itemField: "item", totalField: "cost", buyerField: "buyer", maxItems: 1, requiredTotalQuantity: 1 });
-export const ItemMarketSaleParser = createCashSaleParser({ name: "item-market-sale", logType: 1113, title: "Item market sell", market: participant("market", "item_market"), itemField: "items", totalField: "cost_total", unitField: "cost_each", nullableUnitField: true, buyerField: "buyer", maxItems: 1, sourceFields: ["anonymous", "fee"] });
+export const ItemMarketSaleParser = createCashSaleParser({ name: "item-market-sale", logType: 1113, title: "Item market sell", market: participant("market", "item_market"), itemField: "items", totalField: "cost_total", unitField: "cost_each", nullableUnitField: true, feeField: "fee", buyerField: "buyer", maxItems: 1, sourceFields: ["anonymous", "fee"] });
 export const LegacyBazaarSaleParser = createCashSaleParser({ name: "legacy-bazaar-sale", logType: 1221, title: "Bazaar sell \\(legacy\\)", market: participant("market", "bazaar"), itemField: "item", quantityField: "quantity", totalField: "cost_total", unitField: "cost_each", buyerField: "buyer" });
 export const BazaarSaleParser = createCashSaleParser({ name: "bazaar-sale", logType: 1226, title: "Bazaar sell", market: participant("market", "bazaar"), itemField: "items", totalField: "cost_total", unitField: "cost_each", buyerField: "buyer", maxItems: 1 });
-export const CityShopSaleParser = createCashSaleParser({ name: "city-shop-sale", logType: 4210, title: "Item shop sell", market: participant("market", "city_shop"), itemField: "item", quantityField: "quantity", totalField: "total_value", unitField: "value_each", buyerField: null, sourceFields: ["area"], requiredLiterals: { area: null } });
+export const CityShopSaleParser = createCashSaleParser({ name: "city-shop-sale", logType: 4210, title: "Item shop sell", market: participant("market", "city_shop"), itemField: "item", quantityField: "quantity", totalField: "total_value", unitField: "value_each", buyerField: null, sourceFields: ["area"] });
 
 export const TradeParser = Object.freeze({
   name: "trade", version: "1.0.0", family: "Trade", coverageStatus: "partial",
@@ -84,4 +86,4 @@ export const CrimeCashRewardParser = reward({ name: "crime-cash-reward", logType
 export const FactionItemRewardParser = reward({ name: "faction-item-receive", logType: 6733, title: "Faction give item receive", itemField: "item", source: "faction", basisPolicy: "zero_cash" });
 export const CityItemFindParser = reward({ name: "city-item-find", logType: 7011, title: "City item find", itemField: "item", source: "system", basisPolicy: "zero_cash" });
 
-export const CoreInventoryParsers = Object.freeze([CityShopPurchaseParser, BazaarPurchaseParser, ItemMarketPurchaseParser, LegacyItemMarketPurchaseParser, LegacyBazaarPurchaseParser, AbroadPurchaseParser, GrenadeBoxConversionParser, MedicalBoxConversionParser, StashBoxConversionParser, LegacyItemMarketSaleParser, ItemMarketSaleParser, LegacyBazaarSaleParser, BazaarSaleParser, CityShopSaleParser, ...TransferParsers, TradeParser, CrimeItemRewardParser, CrimeCashRewardParser, FactionItemRewardParser, CityItemFindParser, ...AcquisitionCoverageParsers]);
+export const CoreInventoryParsers = Object.freeze([CityShopPurchaseParser, BazaarPurchaseParser, ItemMarketPurchaseParser, LegacyItemMarketPurchaseParser, LegacyBazaarPurchaseParser, AbroadPurchaseParser, GrenadeBoxConversionParser, MedicalBoxConversionParser, StashBoxConversionParser, LegacyItemMarketSaleParser, ItemMarketSaleParser, LegacyBazaarSaleParser, BazaarSaleParser, CityShopSaleParser, ...DisposalEvidenceParsers, ...TransferParsers, TradeParser, ...TradeEvidenceParsers, CrimeItemRewardParser, CrimeCashRewardParser, FactionItemRewardParser, CityItemFindParser, ...AcquisitionCoverageParsers]);

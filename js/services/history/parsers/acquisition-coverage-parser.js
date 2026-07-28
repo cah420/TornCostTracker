@@ -91,7 +91,7 @@ export const TradeItemsIncomingParser = Object.freeze({
     return [createCanonicalEvent({
       sourceLogId, eventTimestamp: Number(rawLog.timestamp), eventType: "activity", parserName: "trade-items-incoming", parserVersion: "2.0.0",
       counterparties: [participant("trade_partner", "player", data.user)], movements: itemEvidence,
-      attributes: { mechanic: "trade_items_incoming", tradeId, correlationRequired: true },
+      attributes: { mechanic: "trade_items_incoming", tradeId, opaqueTradeId: String(data.trade_id), correlationRequired: true },
       sourceMetadata: sourceMetadata(rawLog),
     })];
   },

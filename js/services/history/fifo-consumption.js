@@ -1,13 +1,14 @@
 import { stableStringify } from "../raw-log-serialization.js";
 import { FIFO_SOURCE_POLICY_REGISTRY } from "./fifo-source-policies.js";
+import { COST_LOT_VERSION } from "./cost-lot.js";
 
-export const FIFO_VERSION = 2;
+export const FIFO_VERSION = 3;
 export const FifoDisposition = Object.freeze({ consumed: "fifo_consumed", partial: "fifo_partially_consumed", noDemand: "no_disposal_demand", ineligible: "ineligible", deferred: "deferred", unresolved: "unresolved", insufficient: "insufficient_inventory", error: "fifo_error" });
 export const FifoDemandStatus = Object.freeze({ pending: "pending", matched: "matched", partial: "partially_matched", unmatched: "unmatched", unresolved: "unresolved", error: "fifo_error" });
 export const FifoMatchType = Object.freeze({ uid: "uid_exact", fungible: "fungible_fifo", deferred: "deferred_basis_fifo" });
 const dispositions = new Set(Object.values(FifoDisposition)); const demandStatuses = new Set(Object.values(FifoDemandStatus)); const matchTypes = new Set(Object.values(FifoMatchType));
 
-function source(transaction){ return { sourceCostLotVersion: 1, sourceLedgerVersion: transaction.ledgerVersion, sourceLedgerTransactionId: transaction.id, sourceProjectionId: transaction.sourceProjectionId, sourceCanonicalEventId: transaction.sourceCanonicalEventId, sourceClassification: transaction.accountingClassification, sourcePolicyCode: transaction.policyCode, disposalTimestamp: transaction.eventTimestamp, sourceMetadata: transaction.sourceMetadata ?? null }; }
+function source(transaction){ return { sourceCostLotVersion: COST_LOT_VERSION, sourceLedgerVersion: transaction.ledgerVersion, sourceLedgerTransactionId: transaction.id, sourceProjectionId: transaction.sourceProjectionId, sourceCanonicalEventId: transaction.sourceCanonicalEventId, sourceClassification: transaction.accountingClassification, sourcePolicyCode: transaction.policyCode, disposalTimestamp: transaction.eventTimestamp, sourceMetadata: transaction.sourceMetadata ?? null }; }
 export function fifoDisposition(transaction, disposition, reasonCode, details = {}){ return { id: `fifo-disposition:${FIFO_VERSION}:${transaction.id}`, fifoVersion: FIFO_VERSION, ...source(transaction), disposition, reasonCode, ...details }; }
 function validItemId(value){ const text = String(value ?? ""); if (!/^\d+$/.test(text) || Number(text) <= 0) throw new Error("invalid_item_id"); return text; }
 function quantity(value){ if (!Number.isInteger(value) || value <= 0) throw new Error("invalid_disposal_quantity"); return value; }
@@ -18,8 +19,8 @@ export function createDisposalDemands(transaction){
   return lines.map((line, occurrence) => {
     const sourceLineId = String(line.id ?? ""); if (!sourceLineId) throw new Error("missing_disposal_item_line"); if (seenLines.has(sourceLineId)) throw new Error("deterministic_identity_collision"); seenLines.add(sourceLineId);
     const itemId = validItemId(line.itemId); const originalDemandQuantity = quantity(line.quantity); const itemUid = line.itemUid === null || line.itemUid === undefined ? null : String(line.itemUid); if (itemUid && originalDemandQuantity !== 1) throw new Error("ambiguous_specific_item_identity");
-    const id = `fifo-demand:${FIFO_VERSION}:${transaction.id}:${sourceLineId}:${itemId}:${itemUid ?? "fungible"}:${occurrence}`; const single = lines.length === 1; const proceedsTotal = single ? money(transaction.debitTotal) : null;
-    return { id, fifoVersion: FIFO_VERSION, ...source(transaction), sourceLedgerLineId: sourceLineId, itemId, itemUid, originalDemandQuantity, matchedQuantity: 0, unmatchedQuantity: originalDemandQuantity, disposalSequence: `${String(transaction.eventTimestamp).padStart(12, "0")}:${transaction.sourceCanonicalEventId}:${transaction.id}:${String(occurrence).padStart(6, "0")}:${sourceLineId}`, occurrenceSequence: occurrence, demandStatus: FifoDemandStatus.pending, sourceTransactionProceeds: money(transaction.debitTotal), proceedsTotal, proceedsAllocationStatus: single ? "fully_attributable" : "allocation_deferred", reasonCode: null };
+    const id = `fifo-demand:${FIFO_VERSION}:${transaction.id}:${sourceLineId}:${itemId}:${itemUid ?? "fungible"}:${occurrence}`; const knownZero = transaction.accountingClassification === "non_cash_disposal"; const single = lines.length === 1; const proceedsTotal = knownZero ? 0 : single ? money(transaction.debitTotal) : null;
+    return { id, fifoVersion: FIFO_VERSION, ...source(transaction), sourceLedgerLineId: sourceLineId, itemId, itemUid, originalDemandQuantity, matchedQuantity: 0, unmatchedQuantity: originalDemandQuantity, disposalSequence: `${String(transaction.eventTimestamp).padStart(12, "0")}:${transaction.sourceCanonicalEventId}:${transaction.id}:${String(occurrence).padStart(6, "0")}:${sourceLineId}`, occurrenceSequence: occurrence, demandStatus: FifoDemandStatus.pending, sourceTransactionProceeds: knownZero ? 0 : money(transaction.debitTotal), proceedsTotal, proceedsAllocationStatus: knownZero || single ? "fully_attributable" : "allocation_deferred", disposalType: transaction.disposalType ?? (knownZero ? "non_cash_disposal" : "sale"), reasonCode: null };
   });
 }
 export function validateDemand(demand){

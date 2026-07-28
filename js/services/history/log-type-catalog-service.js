@@ -2,9 +2,24 @@ import { API } from "../../api.js";
 import { LogTypeCatalogRepository } from "../../database/log-type-catalog-repository.js";
 import { RawLogRepository } from "../../database/raw-log-repository.js";
 
+const disposalClassifications = Object.fromEntries([
+  ...[2010, 2020, 2030, 2050, 2060, 2070, 2080, 2090, 2100, 2101, 2102, 2105, 2110, 2180, 2200, 2210, 2211, 2230, 2231, 2240, 2280, 2281, 2290, 2291, 2300, 2310, 2320, 2410, 2420, 2450, 2460, 2470, 8981, 8982, 8983]
+    .map((id) => [String(id), { classification: "Accounting relevant", reason: "Verified item-consumption contract; creates a known-zero non-sale disposal." }]),
+  ...[1403, 9163].map((id) => [String(id), { classification: "Accounting relevant", reason: "Verified loss or destruction contract; creates a known-zero non-sale disposal." }]),
+  ...[4102, 6728, 8936].map((id) => [String(id), { classification: "Accounting relevant", reason: "Verified gift or donation contract; creates a known-zero non-sale disposal." }]),
+  ["2480", { classification: "Inventory relevant", reason: "Verified item-to-item conversion; excluded from ordinary disposal FIFO." }],
+  ["8985", { classification: "Inventory relevant", reason: "Verified item-to-cash conversion; excluded from ordinary disposal FIFO." }],
+  ["9302", { classification: "Inventory relevant", reason: "Verified conversion-input evidence awaiting complete Conversion Accounting." }],
+  ["6732", { classification: "Inventory relevant", reason: "Verified faction-owned item movement; no personal Inventory Position effect." }],
+  ["7000", { classification: "Inventory relevant", reason: "Museum conversion evidence lacks canonical component Item IDs and requires review." }],
+  ["9300", { classification: "Inventory relevant", reason: "Crime conversion evidence contains quantity but no canonical Item ID and requires review." }],
+  ["9301", { classification: "Inventory relevant", reason: "Crime conversion evidence contains quantity but no canonical Item ID and requires review." }],
+]);
+
 // This intentionally small, reviewable map is the only classification source.
 // Catalog titles never cause a parser or accounting classification to be inferred.
 export const LOG_TYPE_CLASSIFICATIONS = Object.freeze({
+  ...disposalClassifications,
   "1110": { classification: "Ignored", reason: "Item Market listing lifecycle; not an acquisition." },
   "1111": { classification: "Ignored", reason: "Item Market listing lifecycle; not an acquisition." },
   "1202": { classification: "Ignored", reason: "Bazaar availability lifecycle; not an acquisition." },
@@ -23,6 +38,10 @@ export const LOG_TYPE_CLASSIFICATIONS = Object.freeze({
   "4210": { classification: "Accounting relevant", reason: "Verified Item Shop cash-sale shape; parser coverage remains partial until all archived signatures are reviewed." },
   "4401": { classification: "Accounting relevant", reason: "Trade lifecycle coverage is partial; completion is not inferred." },
   "4420": { classification: "Accounting relevant", reason: "Trade lifecycle coverage is partial; completion is not inferred." },
+  "4430": { classification: "Accounting relevant", reason: "Verified completed-trade evidence used by Trade Resolver correlation." },
+  "4440": { classification: "Accounting relevant", reason: "Verified outgoing trade cash evidence used by Trade Resolver eligibility and basis." },
+  "4441": { classification: "Accounting relevant", reason: "Verified incoming trade cash evidence used to exclude unsupported trade directions." },
+  "4445": { classification: "Accounting relevant", reason: "Verified outgoing trade item evidence used to exclude mixed and item-for-item trades." },
   "4446": { classification: "Accounting relevant", reason: "Trade-correlation evidence only; this record does not directly change owned inventory or create acquisition supply." },
   "4482": { classification: "Accounting relevant", reason: "Trade counterparty offer coverage is partial; completion is not inferred." },
   "1401": { classification: "Accounting relevant", reason: "Verified legacy Dump find zero-cash item acquisition." },

@@ -15,8 +15,11 @@ The Purchases experience is now the first application-facing SQLite accounting c
 - Uses one ordered Torn API scheduler for item, catalog, profile, and purchase-log requests, targeting approximately 50 request starts per minute to leave room for normal gameplay and other tools.
 - Shows each item's total quantity and populated locations.
 - Caches owned items, the Torn item catalog, player profile, synchronization status, and snapshots locally.
-- Archives Torn logs in SQLite and rebuilds deterministic accounting layers through Inventory Position v1.
-- Recognizes Bazaar, Item Market, City Shop, Abroad Shop, and trade acquisitions where Torn log data permits.
+- Archives Torn logs in SQLite and rebuilds deterministic accounting layers through Inventory Position v2.
+- Recognizes Bazaar, Item Market, City Shop, Abroad Shop, and strictly eligible resolved trade acquisitions where Torn log data permits.
+- Provides a versioned Trade Resolver for completed cash-sent/items-received trades, including automatic single-item/UID allocation and balanced manual multi-item allocation.
+- Accounts for evidence-backed sales, consumption, outgoing gifts, donations, and losses through FIFO without presenting non-sale outflows as sales losses.
+- Provides a versioned Disposal Resolver for completed items-sent/cash-received trades and persists realized results when proceeds and basis are known.
 - Recognizes verified Faction Gift and City Find zero-cash acquisitions.
 - Records verified wallet and empty-blood-bag inventory conversions with FIFO lot consumption and immutable accounting snapshots.
 - Provides sortable, searchable Items and SQLite-backed Purchases position tables with health, status, basis, and identity filters.
@@ -31,8 +34,8 @@ The Purchases experience is now the first application-facing SQLite accounting c
 - Includes an optional canonical-event replay layer for archived logs. Its initial Wallet and Blood Bag parsers create generic derived movements for future analytics; it does not alter current accounting.
 - Canonical parser coverage now includes observed City Shop, current and legacy Bazaar, Abroad Shop, Item Market, trade-offer, crime reward, Faction item receive, and City item find logs. Legacy Bazaar (1220) and Abroad Shop (4201) remain marked partial until full archived signature coverage is verified. This is based on supplied archive evidence, not all Torn mechanics.
 - Canonical conversion coverage includes verified grenade-box (2350), medical-supply-box (2360), and stash-box (2407) transformations. They record consumed/created resources only and remain partial until full archived signature coverage is verified.
-- Canonical disposal coverage includes verified Item Market, Bazaar, and Item Shop cash-sale logs (1104, 1113, 1221, 1226, 4210). These describe item-out/cash-in movements only; they do not calculate profit, fees, or cost basis and remain partial until full archived signature coverage is verified.
-- Canonical movement coverage treats verified Item receive logs (4101/4103) as zero-cash gifts that create supply, while Item send (4102) remains a neutral outbound transfer.
+- Canonical disposal coverage includes verified Item Market, Bazaar, and Item Shop cash-sale logs (1104, 1113, 1221, 1226, 4210). These create item-out/cash-in movements, consume FIFO basis, and produce realized results when both proceeds and basis are complete.
+- Canonical movement coverage treats verified Item receive logs (4101/4103) as zero-cash gifts that create supply and Item send (4102) as an outgoing zero-proceeds gift that consumes basis without creating a sales loss.
 - Canonical acquisition coverage includes the verified legacy Item Market buy shape (1103): one item row with quantity one, seller, and total cost. Multi-row or multi-unit legacy purchases remain unsupported until their cost-allocation meaning is independently verified.
 - Settings includes a developer-facing Project Health and Coverage Intelligence panel. It reports archive records, parser/signature coverage, parser families, replay snapshots, and high-impact unsupported types; it is read-only and does not change accounting.
 - Settings also includes a developer-facing Accounting Projection rebuild. It interprets canonical events into a separate, deterministic, read-only future-ledger foundation; it does not alter active Purchases, FIFO, cost lots, valuation, or inventory behavior.
@@ -49,9 +52,11 @@ The Purchases experience is now the first application-facing SQLite accounting c
 2. Select **Generate API Key** to create a limited-access Torn key with the permissions the app needs.
 3. Paste the key and select **Save**. Your player profile should appear in the top-right status area.
 4. Open **Items** and select **Refresh** to synchronize your owned items.
-5. Use **Settings → Raw Log Archive** to import evidence, then rebuild Canonical Events, Projection, Ledger, Cost Lots, FIFO, and Inventory Positions in order.
-6. Open **Purchases** to browse remaining accounting positions and inspect Cost Lots and FIFO consumption history.
-7. Select an item on the Items page and open its **Purchases** tab for a compact SQLite position summary.
+5. Use **Settings → Raw Log Archive** to import evidence, then rebuild Canonical Events.
+6. Open **Trade Resolver** and **Disposal Resolver** to resolve eligible completed trades.
+7. Rebuild Projection, Ledger, Cost Lots, FIFO, and Inventory Position in that order. New or edited resolutions require repeating this downstream sequence.
+8. Open **Purchases** to browse remaining accounting positions and inspect Cost Lots and FIFO consumption history.
+9. Select an item on the Items page and open its **Purchases** tab for a compact SQLite position summary.
 
 Your API key is saved only in local browser storage on your device. Do not share it, screenshots containing it, or browser-storage exports with anyone.
 
@@ -72,7 +77,8 @@ Your API key is saved only in local browser storage on your device. Do not share
 - **Bazaar availability:** Torn returns Bazaar contents only while your Bazaar is open. When it is closed or unavailable, the app retains the last cached Bazaar quantity rather than treating it as zero.
 - **Purchases is historical accounting, not live inventory:** Inventory Position is derived from archived evidence. The separately displayed current Torn quantity is informational and is not written into accounting.
 - **Cash-cost scope:** zero-cost and non-cash are different. Only confirmed external free acquisitions may be recorded at $0; non-cash, conversion, and unresolved sources are not assigned a fabricated dollar value.
-- **Unresolved trades:** multi-item trades with a combined cash amount are counted as acquired quantity, but their cost is intentionally shown as unknown unless Torn's log data supports a safe prior allocation.
+- **Trade Resolver scope:** v1 supports only completed trades where the player sent cash only and received items only. Sent items, received cash, item-for-item exchanges, properties, companies, factions, and other mixed trades remain unresolved. Multiple item IDs require a balanced manual allocation.
+- **Disposal evidence scope:** 53 candidate contracts have representative fixtures. Another 48 requested IDs were absent from the archive export and remain unsupported until real payloads are captured.
 - **Archive completeness:** missing historical evidence can produce shortfalls, deferred basis, unknown basis, or a difference from current Torn quantity.
 - **Raw Log Archive:** SQLite archive availability depends on a secure browser context with Worker and OPFS support. If unavailable, all current LocalStorage features remain usable. The archive may be large and is local/private to this browser; use one active app tab while importing. Archived logs are source evidence only, not parsed accounting records.
 - **Canonical Events:** parser replay is a developer-facing, derived-data feature. Unsupported logs are retained and marked as unsupported; replay does not yet make archived activity affect Purchases, FIFO, conversions, or cost basis.

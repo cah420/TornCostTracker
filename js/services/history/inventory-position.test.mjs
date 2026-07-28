@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { InventoryPositionHealth, InventoryPositionStatus, addLotToInventoryPosition, createInventoryPositionAccumulator, finalizeInventoryPositions, inventoryPositionId } from "./inventory-position.js";
+import { INVENTORY_POSITION_VERSION, InventoryPositionHealth, InventoryPositionStatus, addLotToInventoryPosition, createInventoryPositionAccumulator, finalizeInventoryPositions, inventoryPositionId } from "./inventory-position.js";
 
 const lot = (id, overrides = {}) => ({ id, lotGroupId: `g-${id}`, costLotVersion: 1, sourceLedgerVersion: 1, sourceProjectionVersion: 1, sourceLedgerTransactionId: `t-${id}`, sourceProjectionId: `p-${id}`, sourceCanonicalEventId: `c-${id}`, itemId: "1", itemUid: null, originalQuantity: 10, lotStatus: "open", basisStatus: "known_allocated_basis", allocationStatus: "fully_allocated", allocatedBasis: 100, unitBasis: 10, acquisitionTimestamp: 1, acquisitionSequence: `0001:${id}`, ...overrides });
 function build(entries, warnings = []){ const context = createInventoryPositionAccumulator(); entries.forEach(([source, consumption]) => addLotToInventoryPosition(context, source, consumption)); return finalizeInventoryPositions(context, warnings); }
 
-assert.equal(inventoryPositionId("1"), "inventory-position:1:1:fungible");
-assert.equal(inventoryPositionId("1", "u1"), "inventory-position:1:1:u1");
+assert.equal(inventoryPositionId("1"), `inventory-position:${INVENTORY_POSITION_VERSION}:1:fungible`);
+assert.equal(inventoryPositionId("1", "u1"), `inventory-position:${INVENTORY_POSITION_VERSION}:1:u1`);
 const basic = build([[lot("a"), {}]]).positions[0];
 assert.deepEqual({ original: basic.originalQuantity, consumed: basic.consumedQuantity, remaining: basic.remainingQuantity, originalBasis: basic.originalBasis, remainingBasis: basic.remainingBasis }, { original: 10, consumed: 0, remaining: 10, originalBasis: 100, remainingBasis: 100 });
 assert.equal(basic.openLotCount, 1); assert.equal(basic.positionStatus, InventoryPositionStatus.normal); assert.equal(basic.positionHealth, InventoryPositionHealth.healthy); assert.equal(basic.positionConfidence, 100);

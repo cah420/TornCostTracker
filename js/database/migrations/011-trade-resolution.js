@@ -1,0 +1,50 @@
+export const migration011TradeResolution = {
+  version: 11,
+  name: "trade_resolution_v1",
+  statements: [
+    `CREATE TABLE trade_resolutions (
+      id TEXT PRIMARY KEY,
+      trade_id TEXT NOT NULL,
+      resolution_version INTEGER NOT NULL CHECK(resolution_version > 0),
+      schema_version INTEGER NOT NULL CHECK(schema_version > 0),
+      resolver_version TEXT NOT NULL,
+      accounting_policy_version INTEGER NOT NULL CHECK(accounting_policy_version > 0),
+      status TEXT NOT NULL CHECK(status IN ('active', 'superseded', 'needs_review', 'invalid')),
+      resolution_method TEXT NOT NULL CHECK(resolution_method IN ('automatic_single_item', 'manual_multi_item')),
+      total_cash_sent INTEGER NOT NULL CHECK(total_cash_sent > 0),
+      allocations_json TEXT NOT NULL,
+      evidence_hash TEXT NOT NULL,
+      completion_source_log_id TEXT NOT NULL,
+      counterparty_id TEXT,
+      trade_timestamp INTEGER NOT NULL,
+      supersedes_resolution_id TEXT,
+      is_active INTEGER NOT NULL CHECK(is_active IN (0, 1)),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      resolved_at INTEGER NOT NULL,
+      UNIQUE(trade_id, resolution_version),
+      FOREIGN KEY(completion_source_log_id) REFERENCES raw_logs(source_log_id),
+      FOREIGN KEY(supersedes_resolution_id) REFERENCES trade_resolutions(id)
+    )`,
+    "CREATE UNIQUE INDEX idx_trade_resolutions_one_active ON trade_resolutions(trade_id) WHERE is_active = 1",
+    "CREATE INDEX idx_trade_resolutions_status ON trade_resolutions(status, trade_timestamp DESC, trade_id)",
+    "CREATE INDEX idx_trade_resolutions_history ON trade_resolutions(trade_id, resolution_version DESC)",
+    `CREATE TABLE trade_resolution_event_links (
+      resolution_id TEXT NOT NULL,
+      canonical_event_id TEXT NOT NULL UNIQUE,
+      allocation_index INTEGER NOT NULL,
+      lot_index INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(resolution_id, canonical_event_id),
+      FOREIGN KEY(resolution_id) REFERENCES trade_resolutions(id),
+      FOREIGN KEY(canonical_event_id) REFERENCES canonical_events(id)
+    )`,
+    "CREATE INDEX idx_trade_resolution_event_links_resolution ON trade_resolution_event_links(resolution_id, allocation_index, lot_index)",
+    `CREATE TABLE accounting_rebuild_state (
+      layer TEXT PRIMARY KEY,
+      stale_since INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      source_entity_id TEXT NOT NULL
+    )`,
+  ],
+};

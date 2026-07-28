@@ -8,5 +8,7 @@ import { migration007AccountingLedger } from "./007-accounting-ledger.js";
 import { migration008CostLotFoundation } from "./008-cost-lot-foundation.js";
 import { migration009FifoConsumption } from "./009-fifo-consumption.js";
 import { migration010InventoryPosition } from "./010-inventory-position.js";
+import { migration011TradeResolution } from "./011-trade-resolution.js";
+import { migration012DisposalAccounting } from "./012-disposal-accounting.js";
 
-export const DATABASE_MIGRATIONS = [migration001Bootstrap, migration002RawLogWarehouse, migration003CanonicalEvents, migration004TornLogTypeCatalog, migration005CoverageIntelligence, migration006AccountingProjection, migration007AccountingLedger, migration008CostLotFoundation, migration009FifoConsumption, migration010InventoryPosition];
+export const DATABASE_MIGRATIONS = [migration001Bootstrap, migration002RawLogWarehouse, migration003CanonicalEvents, migration004TornLogTypeCatalog, migration005CoverageIntelligence, migration006AccountingProjection, migration007AccountingLedger, migration008CostLotFoundation, migration009FifoConsumption, migration010InventoryPosition, migration011TradeResolution, migration012DisposalAccounting];

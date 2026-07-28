@@ -1,6 +1,6 @@
 import { stableStringify } from "../raw-log-serialization.js";
 
-export const INVENTORY_POSITION_VERSION = 1;
+export const INVENTORY_POSITION_VERSION = 2;
 export const InventoryPositionStatus = Object.freeze({ normal: "NORMAL", partial: "PARTIAL", deferred: "DEFERRED", unknown: "UNKNOWN", negative: "NEGATIVE", error: "ERROR" });
 export const InventoryPositionHealth = Object.freeze({ healthy: "HEALTHY", warning: "WARNING", unhealthy: "UNHEALTHY" });
 

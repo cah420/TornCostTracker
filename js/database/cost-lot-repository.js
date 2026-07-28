@@ -11,7 +11,9 @@ export class CostLotRepository {
     const rows = await this.database.query("SELECT * FROM accounting_cost_lot_runs ORDER BY id DESC LIMIT 1"); return rows[0];
   }
   async finishRun(id, { status, metrics, errorSummary = null, completedAt = Date.now() }){
-    await this.database.transaction([{ sql: "UPDATE accounting_cost_lot_runs SET status = ?, completed_at = ?, metrics_json = ?, error_summary = ? WHERE id = ?", bind: [status, completedAt, costLotPayload(metrics), errorSummary, id] }]);
+    const statements = [{ sql: "UPDATE accounting_cost_lot_runs SET status = ?, completed_at = ?, metrics_json = ?, error_summary = ? WHERE id = ?", bind: [status, completedAt, costLotPayload(metrics), errorSummary, id] }];
+    if (status === "completed") statements.push({ sql: "DELETE FROM accounting_rebuild_state WHERE layer = 'cost_lots'" });
+    await this.database.transaction(statements);
   }
   async updateRunProgress(id, metrics){ await this.database.transaction([{ sql: "UPDATE accounting_cost_lot_runs SET metrics_json = ? WHERE id = ? AND status = 'running'", bind: [costLotPayload(metrics), id] }]); }
   async storeBatch(outputs, { now = Date.now() } = {}){

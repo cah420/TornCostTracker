@@ -14,6 +14,8 @@ import Conversions from "./views/conversions.js";
 import Statistics from "./views/statistics.js";
 import Readme from "./views/readme.js";
 import Settings from "./views/settings.js";
+import TradeResolver from "./views/trade-resolver.js";
+import DisposalResolver from "./views/disposal-resolver.js";
 
 async function applyVersion(){
   try{
@@ -31,7 +33,7 @@ async function applyVersion(){
   }
 }
 
-[Dashboard, Items, Purchases, Conversions, Statistics, Readme, Settings].forEach((view) =>
+[Dashboard, Items, Purchases, TradeResolver, DisposalResolver, Conversions, Statistics, Readme, Settings].forEach((view) =>
   Router.register(view),
 );
 

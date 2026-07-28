@@ -208,7 +208,7 @@ export default {
     const load = async () => {
       const requestId = PurchasesQueries.nextRequest("selector");
       selectorGrid.setLoading(true, "Loading SQLite inventory positions...");
-      message.textContent = "Reading Inventory Position v1..."; message.className = "tct-purchases__message";
+      message.textContent = "Reading the current Inventory Position..."; message.className = "tct-purchases__message";
       try {
         const result = await PurchasesQueries.listPositions({ search: search.value, health: health.value || null, status: status.value || null, basisCompleteness: basis.value || null, identityType: identity.value || null, includeConsumed: includeConsumed.checked, limit: PAGE_SIZE, offset });
         if (!PurchasesQueries.isCurrent(requestId, "selector")) return;

@@ -89,7 +89,9 @@ assert.equal(legacyGiftWithUid.movements[0].attributes.uid, "123456");
 const sentTransfer = registry.select(fixtures.itemSend)[0].parse({ sourceLogId: "send-transfer", rawLog: fixtures.itemSend })[0];
 assert.equal(sentTransfer.movements[0].direction, "out");
 assert.equal(sentTransfer.movements[0].attributes.uid, "12509402993");
-assert.equal(sentTransfer.counterparties[0].role, "receiver");
+assert.equal(sentTransfer.counterparties[0].role, "recipient");
+assert.equal(sentTransfer.eventType, "non_cash_disposal");
+assert.equal(sentTransfer.attributes.disposalType, "gift_or_donation");
 const receivedTransfer = registry.select(fixtures.itemReceive)[0].parse({ sourceLogId: "receive-transfer", rawLog: fixtures.itemReceive })[0];
 assert.equal(receivedTransfer.movements.reduce((sum, movement) => sum + movement.quantity, 0), 5);
 assert.equal(receivedTransfer.movements.every((movement) => movement.direction === "in"), true);
@@ -123,7 +125,7 @@ const invalidSales = [
   { ...fixtures.legacyBazaarSale, data: { ...fixtures.legacyBazaarSale.data, cost_total: 15601 } },
   { ...fixtures.bazaarSale, data: { ...fixtures.bazaarSale.data, items: [{ id: 1080, qty: 1 }, { id: 1080, qty: 1 }] } },
   { ...fixtures.cityShopSale, data: { ...fixtures.cityShopSale.data, total_value: undefined } },
-  { ...fixtures.cityShopSale, data: { ...fixtures.cityShopSale.data, area: 1 } },
+  { ...fixtures.cityShopSale, data: { ...fixtures.cityShopSale.data, area: { unsupported: true } } },
 ];
 invalidSales.forEach((rawLog, index) => {
   const parser = registry.select(rawLog)[0];
